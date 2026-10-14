@@ -32,8 +32,11 @@ When this map closes, the day's first run shows every workspace, unchecking one 
 - **When does the user make the choice?** — on the existing connect screen, after device-flow connect.
 - **First-run state when `selection.json` is missing?** — auto-watch all orgs from `/api/orgs` and persist.
 - **Save UX for toggles?** — explicit Apply button: toggles stage locally; one write on Apply.
-- **Org-list source for the picker?** — new `listWorkspaces` RPC returns `[{ id, name }]` from `/api/orgs`. The existing workspace-count badge on the Status section stays.
+- **Org-list source for the picker?** — new `listWorkspaces` RPC returns `[{ id, name, selected }]` from `/api/orgs`. The existing workspace-count badge on the Status section stays.
 
+### Closed tickets
+
+- [Server: selection storage, listWorkspaces RPC, discover filter, auto-seed](tickets/01-server-selection-and-discover-filter.md) (commit `06ac4d5`): `selection.json` (mode `0600`, atomic write) + `ensureSeeded` idempotent first-run auto-seed + `listAccounts = selection ∩ /api/orgs` + `listWorkspacesForUsage` + `listWorkspacesRpc` + `saveSelectionRpc`. 16 new tests; existing 34 regression-free.
 ## Not yet specified
 
 Fog toward the destination. Each item is specifiable on demand; nothing here is sharp enough to be a ticket yet.

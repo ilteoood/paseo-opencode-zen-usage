@@ -2,7 +2,7 @@
 
 Parent: [map](../map.md)
 Type: `wayfinder:task` (AFK)
-Status: open, unblocked (frontier)
+Status: closed (commit `06ac4d5` on `feature/workspace-watchlist`)
 
 ## Question
 
@@ -53,3 +53,11 @@ Wire the server side of the watchlist so the picker has authoritative data and `
 - `bun run typecheck` clean.
 - New tests pass; the existing 34 tests still pass (no regression on the round-5 endpoint pivot in uncommitted state).
 - Diff is minimal: no churn on `server/auth.ts`, no churn on `client/*` files, only the listed files touched.
+## Resolution
+
+Built as scoped. Notable refinements versus the plan (all backward-compatible):
+
+- `listWorkspacesForUsage` returns `[{ id, name, selected }]` rather than `[{ id, name }]` so the picker gets current selection state in one round trip.
+- `orgs` extracted to a new `server/orgs.ts` module — both `usage.ts` and the new RPC consume it.
+- `hydrateWorkspaceCount` lost its `wantsCount` flag (dead arg — every caller wanted it).
+- `index.server.ts`'s `listWorkspaces` handler returns `{ entries: [] }` on credential missing or fetch failure so the picker can render an empty state without throwing.
