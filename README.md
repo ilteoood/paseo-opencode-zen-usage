@@ -24,8 +24,12 @@ Requires Paseo 0.11+ on the daemon.
    decodes `email` out of the access_token JWT, writes the credential to
    `$XDG_DATA_HOME/paseo-opencode-zen-usage/cred.json` (mode `0600`).
 3. **Discover** — every five minutes the daemon calls `discover`, which lists
-   your workspaces via `/api/orgs` and emits one `UsageAccount` per workspace
-   (`harness: "opencode"`, `label: "Workspace — email@example.com"`).
+   your workspaces via `/api/orgs` and intersects them with the per-org
+   watchlist in `$XDG_DATA_HOME/paseo-opencode-zen-usage/selection.json`
+   (mode `0600`). One `UsageAccount` is emitted per **watched** workspace;
+   opting out of a workspace drops its card. The watchlist seeds itself with
+   every workspace the first time it's read — opting in is the default, opting
+   out is explicit. See [Workspace watchlist](#workspace-watchlist).
 4. **Fetch** — `fetch({ workspaceId })` calls
    `https://opencode.ai/console/api/policies/current-budgets` with the
    `x-org-id: <workspace>` header. The response is an array of the budget
@@ -36,6 +40,32 @@ Requires Paseo 0.11+ on the daemon.
 
    An empty array becomes `unavailable { no_quota }`. A `403` becomes
    `unavailable { no_quota }` so the daemon can offer a remedy.
+
+## Workspace watchlist
+
+Once the device-flow connect reaches `status: connected`, the connect
+screen reveals a `Workspaces` section listing every workspace you belong
+to. Each row is a tickable checkbox with the workspace name and id; the
+**Apply** button commits the new watchlist, either via the new
+`opencode-zen.workspaces.save` RPC from the connect screen, or implicitly
+via `discover` when it auto-seeds on first run.
+
+- First-run: every workspace is selected; pressing Apply without changes
+  is a no-op, so the picker stays inert unless you actually want to opt
+  out of something.
+- Explicit changes: the button label flips to `Apply (N)` while there are
+  unsaved edits, where `N` is the number of adds plus removes between
+  the file-on-disk and the staged state.
+- Optimisations deliberately excluded: no instant on-toggle save (every
+  flip would write to disk and we'd hit `/api/orgs` noise on every
+  jitter). No background refresh — discover runs every five minutes.
+
+The file lives at
+`$XDG_DATA_HOME/paseo-opencode-zen-usage/selection.json` next to
+`cred.json`, written atomically (tmp + rename) with mode `0600`. Disconnect
+**does not** clear it — reconnecting reuses the prior choice and just
+appends any new orgs `/api/orgs` lists for the first time.
+
 ## Data model
 
 **Inputs** — `usageAccountInputSchema = { workspaceId: string }` (strict).
@@ -51,6 +81,7 @@ budget policy that applies to the signed-in user (USD, with `used`,
 `limit`, and `remaining` derived from `limitDollars` and
 `spentDollars`). The first window of the array is marked
 `summary: true` so it surfaces in the usage summary.
+
 ## What's missing on purpose
 
 - The connect screen uses a single in-memory `current` device-flow state.
@@ -63,21 +94,25 @@ budget policy that applies to the signed-in user (USD, with `used`,
   the signed-in user's own budgets, so a workspace whose response is
   empty just renders `unavailable { no_quota }` instead of falling
   back to a workspace total.
+
 ## Layout
 
 ```
 paseo-plugin.json          id, requirement >=0.11.0
-index.server.ts            registers usage source + connect RPCs
+index.server.ts            registers usage source + connect/workspaces RPCs
 index.client.tsx           registers screen + Command Center item
 client/connect.tsx         device-flow UI
+client/workspaces.tsx      watchlist picker (Apply UX)
 client/styles.ts           themed stylesheet over PluginTheme
-server/usage.ts            UsageSourceRegistration
+server/usage.ts            UsageSourceRegistration + watchlist filter
 server/auth.ts             device flow orchestration
 server/cred.ts             credential load / save / clear (XDG)
+server/selection.ts        watchlist load / save / ensureSeeded / clear
+server/orgs.ts             /api/orgs normalisation
 server/plumbing.ts         fetch + token refresh
 server/types.ts            response interfaces
-shared/schema.ts           zod schemas (usage input, connect state)
-shared/connect.ts          RPC contracts for the four device-flow transitions
+shared/schema.ts           zod schemas (usage input, connect/workspace state)
+shared/connect.ts          RPC contracts
 test/                      bun test suite with mocked globalThis.fetch
 ```
 
@@ -91,8 +126,10 @@ bun test
 
 The suite mocks `globalThis.fetch`, points `XDG_DATA_HOME` at a tempdir, and
 exercises every transition: device start, slow_down, denied, expired, the
-rotate-and-store refresh path, member-vs-identity matching, and the 401/403
-mapping.
+rotate-and-store refresh path, the 401/403 mapping, the watchlist storage
+round-trip / atomically-written mode `0600` / seed-once semantics, the
+selection-vs-`/api/orgs` intersection on discover, and the regression
+that disconnect preserves `selection.json`.
 
 ## License
 
