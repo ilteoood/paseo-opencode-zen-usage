@@ -16,11 +16,10 @@ import type {
 } from "@getpaseo/plugin/server/usage";
 
 import { CONSOLE, HttpError, fetchJson, fetchWithWorkspace, readFreshCredential } from "./plumbing.ts";
-import type { BudgetMember, Org } from "./types.ts";
+import type { CurrentBudget, Org } from "./types.ts";
 import { usageAccountInputSchema } from "../shared/schema.ts";
 
 const USAGE_INPUT = usageAccountInputSchema;
-const ONE_MICROCENT_TO_USD = 100_000_000;
 const HARNESS = "opencode";
 
 function sessionMatches(scope: UsageScope): boolean {
@@ -33,21 +32,9 @@ async function loadCredential(): Promise<Awaited<ReturnType<typeof readFreshCred
 	return readFreshCredential();
 }
 
-function toNumberOrNull(value: string | null | undefined): number | null {
-	if (typeof value !== "string") return null;
-	const parsed = Number(value);
-	return Number.isFinite(parsed) ? parsed : null;
-}
-
 function accountKeyFor(workspaceId: string, identitySubject: string | null): string {
 	const subject = identitySubject ?? "anonymous";
 	return hashAccountKey(`${workspaceId}:${HARNESS}:${subject}`);
-}
-
-function memberMatchesIdentity(member: BudgetMember, identity: { email: string | null; sub: string | null }): boolean {
-	if (identity.email && member.email === identity.email) return true;
-	if (identity.sub && member.user_id === identity.sub) return true;
-	return false;
 }
 
 async function fetchOrganizations(token: string): Promise<Org[]> {
@@ -81,95 +68,44 @@ export async function listAccounts(scope: UsageScope): Promise<UsageAccount[]> {
 	});
 }
 
-function reportFromMember(member: BudgetMember, planLabel: string): UsageReport {
-	const limit = toNumberOrNull(member.limit_micro_cents);
-	const spent = toNumberOrNull(member.spent_micro_cents);
-	const resetsAt = member.resets_at;
-	const usedPct = limit !== null && spent !== null && limit > 0 ? (spent / limit) * 100 : null;
+function windowAndBalanceForBudget(index: number, budget: CurrentBudget): { window: UsageWindow; balance: UsageBalance } {
+	const usedPct =
+		budget.limitDollars !== null && budget.spentDollars !== null && budget.limitDollars > 0
+			? (budget.spentDollars / budget.limitDollars) * 100
+			: null;
 	const tone = toneFromUsedPct(usedPct);
+	const id = `policy-${budget.ruleID}-${index}`;
+	const label = budget.ruleID;
+	const remaining =
+		budget.limitDollars !== null && budget.spentDollars !== null
+			? budget.limitDollars - budget.spentDollars
+			: null;
 	const window: UsageWindow = windowFromUsedPct({
-		id: "monthly",
-		label: "Monthly budget",
+		id,
+		label,
 		shortLabel: "mo",
-		summary: true,
+		summary: index === 0,
 		utilizationPct: usedPct,
-		resetsAt,
 		tone,
 	});
 	const balance: UsageBalance = {
-		id: "monthly-balance",
-		label: "This month",
-		used: spent !== null ? spent / ONE_MICROCENT_TO_USD : null,
-		limit: limit !== null ? limit / ONE_MICROCENT_TO_USD : null,
-		remaining: limit !== null && spent !== null ? (limit - spent) / ONE_MICROCENT_TO_USD : null,
+		id: `${id}-balance`,
+		label,
+		used: budget.spentDollars,
+		limit: budget.limitDollars,
+		remaining,
 		unit: "usd",
-		resetsAt,
 		tone,
 	};
-	const details = [];
-	if (member.exceeded) {
-		details.push({
-			id: "exceeded",
-			label: "Status",
-			value: "Over budget for the cycle",
-			tone: "danger" as const,
-		});
-	}
-	return {
-		status: "available",
-		planLabel,
-		windows: [window],
-		balances: [balance],
-		details: details.length > 0 ? details : undefined,
-	};
+	return { window, balance };
 }
 
-function workspaceTotalReport(members: BudgetMember[], planLabel: string): UsageReport {
-	const totals = members.reduce(
-		(acc, member) => {
-			if (member.limit_micro_cents !== null) {
-				acc.limit += toNumberOrNull(member.limit_micro_cents) ?? 0;
-				acc.limitedCount += 1;
-			}
-			if (member.spent_micro_cents !== null) {
-				acc.spent += toNumberOrNull(member.spent_micro_cents) ?? 0;
-			}
-			return acc;
-		},
-		{ limit: 0, spent: 0, limitedCount: 0 },
-	);
-	const usedPct = totals.limit > 0 ? (totals.spent / totals.limit) * 100 : null;
-	const resetsAt = members[0]?.resets_at ?? null;
-	const exceedsBudget = members.some((member) => member.exceeded);
-	const tone = toneFromUsedPct(usedPct);
+function reportFromBudgets(budgets: CurrentBudget[]): UsageReport {
+	const pairs = budgets.map((budget, index) => windowAndBalanceForBudget(index, budget));
 	return {
 		status: "available",
-		planLabel,
-		windows: [
-			windowFromUsedPct({
-				id: "workspace-monthly",
-				label: "Workspace total",
-				shortLabel: "ws",
-				utilizationPct: usedPct,
-				resetsAt,
-				tone,
-			}),
-		],
-		balances: [
-			{
-				id: "workspace-monthly-balance",
-				label: "Workspace total",
-				used: totals.limitedCount > 0 ? totals.spent / ONE_MICROCENT_TO_USD : null,
-				limit: totals.limitedCount > 0 ? totals.limit / ONE_MICROCENT_TO_USD : null,
-				remaining: totals.limitedCount > 0 ? (totals.limit - totals.spent) / ONE_MICROCENT_TO_USD : null,
-				unit: "usd",
-				resetsAt,
-				tone,
-			},
-		],
-		details: exceedsBudget
-			? [{ id: "exceeded", label: "Status", value: "Workspace member over budget", tone: "danger" as const }]
-			: undefined,
+		windows: pairs.map((pair) => pair.window),
+		balances: pairs.map((pair) => pair.balance),
 	};
 }
 
@@ -184,8 +120,7 @@ function diagnoseError(error: unknown): UsageReport {
 		if (error.status === 403) {
 			return unavailable({
 				kind: "no_quota",
-				detail:
-					"OpenCode rejected this login (HTTP 403). The console budgets endpoint requires an admin or service-account key; reconnect from Command Center or paste an admin API key into plugin settings.",
+				detail: `OpenCode returned 403 for this workspace; the token does not list it. Reconnect from Command Center or pick another workspace.`,
 			});
 		}
 	}
@@ -198,34 +133,33 @@ export async function fetchReport(input: unknown): Promise<UsageReport> {
 		return { status: "error", error: parsed.error.message };
 	}
 	const { workspaceId } = parsed.data;
-const credential = await loadCredential();
+	const credential = await loadCredential();
 	if (!credential) {
 		return unavailable({
 			kind: "expired",
 			expiresAt: new Date().toISOString(),
 		});
 	}
-	let members: BudgetMember[];
+	let budgets: CurrentBudget[];
 	try {
-		members = await fetchWithWorkspace<BudgetMember[]>(`${CONSOLE}/api/v1/budgets/members`, credential.access, workspaceId);
+		budgets = await fetchWithWorkspace<CurrentBudget[]>(
+			`${CONSOLE}/api/policies/current-budgets`,
+			credential.access,
+			workspaceId,
+		);
 	} catch (error) {
 		return diagnoseError(error);
 	}
-	if (!Array.isArray(members)) {
+	if (!Array.isArray(budgets)) {
 		return { status: "error", error: "unexpected budget response shape" };
 	}
-	const personal = members.find((member) => memberMatchesIdentity(member, credential.identity));
-	if (personal) {
-		const planLabel = personal.source === "custom" ? "Custom override" : "Workspace default";
-		return reportFromMember(personal, planLabel);
+	if (budgets.length === 0) {
+		return unavailable({
+			kind: "no_quota",
+			detail: "no current-budgets row for this workspace",
+		});
 	}
-	if (credential.identity.email === null && credential.identity.sub === null) {
-		return workspaceTotalReport(members, "Workspace total");
-	}
-	return unavailable({
-		kind: "no_quota",
-		detail: "no row matches your identity in this workspace",
-	});
+	return reportFromBudgets(budgets);
 }
 
 export const opencodeZenUsageSource: UsageSourceRegistration = {
@@ -240,4 +174,4 @@ export function deriveAccountKey(workspaceId: string, identitySubject: string | 
 	return accountKeyFor(workspaceId, identitySubject);
 }
 
-export const __testing = { hash: createHash, ONE_MICROCENT_TO_USD, accountKeyFor };
+export const __testing = { hash: createHash, accountKeyFor };

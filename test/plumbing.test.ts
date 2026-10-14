@@ -152,10 +152,11 @@ describe("refreshAccessToken", () => {
 	});
 });
 
+
 describe("fetchWithWorkspace", () => {
 	test("sends Bearer and x-org-id headers", async () => {
-		responses.push({ status: 200, body: [{ user_id: "u", email: "a@b" }] });
-		await fetchWithWorkspace<unknown[]>(`${CONSOLE}/api/v1/budgets/members`, "tok", "wrk_1");
+		responses.push({ status: 200, body: [{ policyID: "p" }] });
+		await fetchWithWorkspace<unknown[]>(`${CONSOLE}/api/policies/current-budgets`, "tok", "wrk_1");
 		const call = calls[0]!;
 		expect((call.init?.headers as Record<string, string>).Authorization).toBe("Bearer tok");
 		expect((call.init?.headers as Record<string, string>)["x-org-id"]).toBe("wrk_1");
@@ -164,7 +165,7 @@ describe("fetchWithWorkspace", () => {
 	test("rejects with HttpError on non-2xx", async () => {
 		responses.push({ status: 403, body: { _tag: "Forbidden" } });
 		await expect(
-			fetchWithWorkspace(`${CONSOLE}/api/v1/budgets/members`, "tok", "wrk_1"),
+			fetchWithWorkspace(`${CONSOLE}/api/policies/current-budgets`, "tok", "wrk_1"),
 		).rejects.toBeInstanceOf(HttpError);
 	});
 });

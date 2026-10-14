@@ -3,15 +3,14 @@ export interface Org {
 	name: string;
 }
 
-export interface BudgetMember {
-	user_id: string;
-	email: string;
-	limit_micro_cents: string | null;
-	spent_micro_cents: string | null;
-	exceeded: boolean;
-	resets_at: string | null;
-	source: "custom" | "default" | null;
-	updated_at: string | null;
+export interface CurrentBudget {
+	policyID: string;
+	ruleID: string;
+	limitDollars: number | null;
+	scope: string | null;
+	per: string | null;
+	spentDollars: number | null;
+	modelCount: number | null;
 }
 
 export interface Identity {

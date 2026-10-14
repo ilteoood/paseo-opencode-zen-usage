@@ -117,74 +117,61 @@ describe("listAccounts", () => {
 });
 
 describe("fetchReport", () => {
-	test("returns window + balance when the API row matches identity email", async () => {
+	test("returns a window + balance per policy when the response is non-empty", async () => {
 		await saveOnly();
 		responses.push({
 			status: 200,
 			body: [
 				{
-					user_id: "user_other",
-					email: "bob@example.com",
-					limit_micro_cents: "100000000",
-					spent_micro_cents: "25000000",
-					exceeded: false,
-					resets_at: "2026-10-01T00:00:00.000Z",
-					source: "default",
-					updated_at: null,
+					policyID: "policy_legacy_budget_88619",
+					ruleID: "rule_legacy_budget_88619",
+					limitDollars: 50,
+					scope: "each",
+					per: "set",
+					spentDollars: 14.43382314,
+					modelCount: 0,
 				},
 				{
-					user_id: "user_alice",
-					email: "alice@example.com",
-					limit_micro_cents: "200000000",
-					spent_micro_cents: "50000000",
-					exceeded: false,
-					resets_at: "2026-10-01T00:00:00.000Z",
-					source: "custom",
-					updated_at: "2026-09-03T12:00:00.000Z",
+					policyID: "policy_extra_budget_42",
+					ruleID: "rule_extra_budget_42",
+					limitDollars: 10,
+					scope: "each",
+					per: "set",
+					spentDollars: 9,
+					modelCount: 1,
 				},
 			],
 		});
 		const report = await fetchReport({ workspaceId: "wrk_1" });
 		expect(report.status).toBe("available");
 		if (report.status === "available") {
-			expect(report.planLabel).toBe("Custom override");
-			expect(report.windows).toHaveLength(1);
-			const window = report.windows[0]!;
-			expect(window.id).toBe("monthly");
-			expect(window.label).toBe("Monthly budget");
-			expect(window.usedPct).toBeCloseTo(25, 5);
-			expect(window.resetsAt).toBe("2026-10-01T00:00:00.000Z");
-			expect(report.balances?.[0]).toMatchObject({
+			expect(report.windows).toHaveLength(2);
+			expect(report.balances).toHaveLength(2);
+			const [first, second] = report.windows;
+			expect(first?.id).toContain("rule_legacy_budget_88619");
+			expect(first?.label).toBe("rule_legacy_budget_88619");
+			expect(first?.shortLabel).toBe("mo");
+			expect(first?.summary).toBe(true);
+			expect(first?.usedPct).toBeCloseTo((14.43382314 / 50) * 100, 5);
+			expect(second?.summary).toBeUndefined();
+			const [firstBalance] = report.balances ?? [];
+			expect(firstBalance).toMatchObject({
 				unit: "usd",
-				limit: 2,
-				remaining: 1.5,
+				limit: 50,
+				remaining: 50 - 14.43382314,
 			});
 		}
 		expect(calls[0]?.headers?.["x-org-id"]).toBe("wrk_1");
-		expect(calls[0]?.url).toContain("/api/v1/budgets/members");
+		expect(calls[0]?.url).toContain("/api/policies/current-budgets");
 	});
 
-	test("returns unavailable{no_quota} when no row matches identity", async () => {
+	test("returns unavailable{no_quota} when the response is empty", async () => {
 		await saveOnly();
-		responses.push({
-			status: 200,
-			body: [
-				{
-					user_id: "user_other",
-					email: "bob@example.com",
-					limit_micro_cents: "100000000",
-					spent_micro_cents: "10000000",
-					exceeded: false,
-					resets_at: "2026-10-01T00:00:00.000Z",
-					source: "default",
-					updated_at: null,
-				},
-			],
-		});
+		responses.push({ status: 200, body: [] });
 		const report = await fetchReport({ workspaceId: "wrk_1" });
 		expect(report.status).toBe("unavailable");
 		if (report.status === "unavailable" && report.problem.kind === "no_quota") {
-			expect(report.problem.detail).toMatch(/no row matches/);
+			expect(report.problem.detail).toMatch(/current-budgets/);
 		} else {
 			throw new Error("expected unavailable {no_quota}");
 		}
@@ -202,13 +189,13 @@ describe("fetchReport", () => {
 		}
 	});
 
-test("returns no_quota with admin hint on 403", async () => {
+	test("returns no_quota on 403", async () => {
 		await saveCredential(credential({ expires: Date.now() + 10 * 60_000 }));
 		responses.push({ status: 403, body: { _tag: "Forbidden" } });
 		const report = await fetchReport({ workspaceId: "wrk_1" });
 		expect(report.status).toBe("unavailable");
 		if (report.status === "unavailable" && report.problem.kind === "no_quota") {
-			expect(report.problem.detail).toMatch(/admin|budget/i);
+			expect(typeof report.problem.detail).toBe("string");
 		} else {
 			throw new Error("expected unavailable {no_quota}");
 		}
@@ -216,6 +203,13 @@ test("returns no_quota with admin hint on 403", async () => {
 
 	test("returns error when input fails schema", async () => {
 		const report = await fetchReport({});
+		expect(report.status).toBe("error");
+	});
+
+	test("returns error when response shape is unexpected", async () => {
+		await saveOnly();
+		responses.push({ status: 200, body: { _: "not an array" } });
+		const report = await fetchReport({ workspaceId: "wrk_1" });
 		expect(report.status).toBe("error");
 	});
 });

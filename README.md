@@ -27,17 +27,15 @@ Requires Paseo 0.11+ on the daemon.
    your workspaces via `/api/orgs` and emits one `UsageAccount` per workspace
    (`harness: "opencode"`, `label: "Workspace — email@example.com"`).
 4. **Fetch** — `fetch({ workspaceId })` calls
-   `https://opencode.ai/console/api/v1/budgets/members` with the
-   `x-org-id: <workspace>` header. The row matching the JWT `email` becomes a
-   `UsageWindow` (`Monthly budget`, `usedPct = spent / limit`) and matching
-   `UsageBalance` in USD cents. Tokens are transparently refreshed when within
-   60 s of expiry.
+   `https://opencode.ai/console/api/policies/current-budgets` with the
+   `x-org-id: <workspace>` header. The response is an array of the budget
+   policies that apply to you in that workspace; each becomes a
+   `UsageWindow` and matching `UsageBalance` in USD (the API already
+   reports amounts in dollars). Tokens are transparently refreshed when
+   within 60 s of expiry.
 
-   When the console returns a row whose `limit_micro_cents` is `null` and
-   whose `source` is `null` the member is unlimited and the card shows
-   `unavailable { no_quota }`. A `403` becomes
-   `unavailable { rejected }` so the daemon can offer a remedy.
-
+   An empty array becomes `unavailable { no_quota }`. A `403` becomes
+   `unavailable { no_quota }` so the daemon can offer a remedy.
 ## Data model
 
 **Inputs** — `usageAccountInputSchema = { workspaceId: string }` (strict).
@@ -48,11 +46,11 @@ plugin reads them.
 `account.key = sha256(workspaceId:opencode:<email|sub>)` per Hosting SDK
 contract. Same identity across rotations.
 
-**Reports** — one `UsageWindow` (`Monthly budget`, short label `mo`, marked
-`summary: true`) and one `UsageBalance` (USD, with `used` / `limit` /
-`remaining` derived from `*_micro_cents`), plus an optional `UsageDetail`
-when `member.exceeded === true`.
-
+**Reports** — one `UsageWindow` and matching `UsageBalance` per
+budget policy that applies to the signed-in user (USD, with `used`,
+`limit`, and `remaining` derived from `limitDollars` and
+`spentDollars`). The first window of the array is marked
+`summary: true` so it surfaces in the usage summary.
 ## What's missing on purpose
 
 - The connect screen uses a single in-memory `current` device-flow state.
@@ -60,11 +58,11 @@ when `member.exceeded === true`.
   "Not connected" until the user starts a new flow.
 - No background job — refresh rides on every usage-modal open. The SDK
   caches reports for 5 minutes; we don't pre-warm.
-- Self-identity depends on a JWT `email`/`sub` claim. The Console API has
-  no documented `/api/me`; if a future build stops embedding the email in
-  the token, the adapter falls back to a workspace-total `UsageReport`
-  with `planLabel: "Workspace total"`.
-
+- Self-identity depends on a JWT `email`/`sub` claim only for the
+  per-workspace account key; the `current-budgets` endpoint returns
+  the signed-in user's own budgets, so a workspace whose response is
+  empty just renders `unavailable { no_quota }` instead of falling
+  back to a workspace total.
 ## Layout
 
 ```
