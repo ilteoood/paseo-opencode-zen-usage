@@ -3,13 +3,12 @@ import { mkdtempSync, rmSync, statSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
-	SELECTION_PATH,
 	ensureSeeded,
 	loadSelection,
 	saveSelection,
+	selectionPath,
 	selectionStatus,
 } from "../server/selection.ts";
-
 let installed: string | null = null;
 
 beforeEach(() => {
@@ -37,7 +36,7 @@ describe("selection store", () => {
 
 	test("writes the file with mode 0600", async () => {
 		await saveSelection(["wrk_a"]);
-		const mode = statSync(SELECTION_PATH()).mode & 0o777;
+		const mode = statSync(selectionPath()).mode & 0o777;
 		expect(mode).toBe(0o600);
 	});
 
@@ -72,7 +71,7 @@ describe("selection store", () => {
 
 	test("returns null when stored file is corrupt", async () => {
 		const fs = await import("node:fs/promises");
-		const path = SELECTION_PATH();
+		const path = selectionPath();
 		await fs.mkdir(path.replace(/\/selection\.json$/, ""), { recursive: true });
 		await fs.writeFile(path, "not-json");
 		expect(await loadSelection()).toBeNull();
@@ -80,7 +79,7 @@ describe("selection store", () => {
 
 	test("returns null when stored file has wrong shape", async () => {
 		const fs = await import("node:fs/promises");
-		const path = SELECTION_PATH();
+		const path = selectionPath();
 		await fs.mkdir(path.replace(/\/selection\.json$/, ""), { recursive: true });
 		await fs.writeFile(path, JSON.stringify({ wrong: "shape" }));
 		expect(await loadSelection()).toBeNull();
@@ -101,7 +100,7 @@ describe("selection store", () => {
 
 	test("selectionStatus reports corrupt for a non-JSON file", async () => {
 		const fs = await import("node:fs/promises");
-		const path = SELECTION_PATH();
+		const path = selectionPath();
 		await fs.mkdir(path.replace(/\/selection\.json$/, ""), { recursive: true });
 		await fs.writeFile(path, "not-json");
 		expect(await selectionStatus()).toEqual({ kind: "corrupt" });
@@ -109,7 +108,7 @@ describe("selection store", () => {
 
 	test("ensureSeeded leaves a corrupt file untouched and returns empty", async () => {
 		const fs = await import("node:fs/promises");
-		const path = SELECTION_PATH();
+		const path = selectionPath();
 		await fs.mkdir(path.replace(/\/selection\.json$/, ""), { recursive: true });
 		await fs.writeFile(path, "not-json");
 		const result = await ensureSeeded(["wrk_a", "wrk_b"]);

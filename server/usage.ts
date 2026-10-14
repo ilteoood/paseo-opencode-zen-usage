@@ -1,5 +1,3 @@
-import { createHash } from "node:crypto";
-import { z } from "zod";
 import {
 	hashAccountKey,
 	toneFromUsedPct,
@@ -177,13 +175,7 @@ export async function fetchReport(input: unknown): Promise<UsageReport> {
 export const opencodeZenUsageSource: UsageSourceRegistration = {
 	id: "opencode-zen-usage",
 	label: "OpenCode Zen",
-	input: z.object({ workspaceId: z.string().min(1) }).strict(),
+	input: usageAccountInputSchema,
 	discover: listAccounts,
 	fetch: fetchReport,
 };
-
-export function deriveAccountKey(workspaceId: string, identitySubject: string | null): string {
-	return accountKeyFor(workspaceId, identitySubject);
-}
-
-export const __testing = { hash: createHash, accountKeyFor };
