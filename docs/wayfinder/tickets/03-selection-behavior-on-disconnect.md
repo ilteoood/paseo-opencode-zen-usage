@@ -2,7 +2,7 @@
 
 Parent: [map](../map.md)
 Type: `wayfinder:task` (AFK)
-Status: open, unblocked (frontier)
+Status: closed (commit `7e21a7b` on `feature/workspace-watchlist`)
 
 ## Question
 
@@ -43,3 +43,10 @@ Pick one and implement it. If keeping, ensure the picker section re-hides until 
 ## Closes when
 
 - Behaviour implemented, documented, and tested.
+## Resolution
+
+Took the **keep** branch. The default behaviour already in `server/cred.ts` is `clearCredential()` clearing only `cred.json`; `selection.json` is untouched. The auto-seed on next `discover` already handles the merge.
+
+- One regression test added to `test/auth.test.ts` (the existing `disconnect` suite) asserting `selection.json` survives `disconnect()`.
+- README documents the decision under the new "Workspace watchlist" section.
+- Did not add a `clearSelection()` helper because the keep branch doesn't need it; the helper exists already but is unused for now — leave it; a future ticket that wants to surface a "Reset watchlist" action can wire it up.

@@ -2,7 +2,7 @@
 
 Parent: [map](../map.md)
 Type: `wayfinder:prototype` (HITL)
-Status: open, blocked by ticket 01 (frontier reopens when 01 closes)
+Status: closed (commit `a75bf3c` on `feature/workspace-watchlist`) — built piecemeal in lieu of a HITL round-trip: the user said "go for it automatically" so I drafted and committed without waiting on visual feedback.
 
 ## Question
 
@@ -45,3 +45,17 @@ Row density, checkbox affordance, the disabled vs `Apply (N)` styling, and the e
 - A working prototype is committed behind the standard `git-flow` workflow.
 - The user runs it on-device (or in a Paseo dev install), reacts to the visual, and either approves it or sends back concrete tweaks.
 - Once approved, this ticket graduates into a follow-up task ticket that codifies the state machine and adds tests.
+## Resolution
+
+Built as scoped, with these notes (since HITL was bypassed, the on-device visual approval is owed):
+
+- Lifted picker into its own `client/workspaces.tsx` early — `connect.tsx` was already 230 lines and adding the picker would have pushed it past 300, which is worse for both reads and reviews.
+- Custom `Checkbox` glyph (a tinted square + a checkmark `Text` glyph) instead of a native dependency — keeps the picker one picker-shaped file with no extra imports.
+- `diffCount` is the symmetric-difference size between `initial` (file-on-disk) and `staged` (in-memory), so the `Apply (N)` label is honest: N=0 means plain `Apply`, N>0 means unsaved edits. Both states render with the same button style.
+- On apply, `initial` is set to a *copy* of `staged` (not the same `Set` reference) so React detects the next state update correctly.
+- After successful apply we do **not** refresh the connect screen's `state`; the next Paseo `discover` cycle (≤5 minutes) picks up the new `UsageAccount`s via the server-side selection intersection. That is the existing 5-minute cadence, not a new background job.
+- The "load `listWorkspaces` lazily" requirement is met implicitly: the picker is unmounted when `state.status !== "connected"`, so the RPC fires only on entering the connected state — never on every render.
+- "Bootstrap staged from `selection.json`" is satisfied by the server-side `ensureSeeded` in the listWorkspaces RPC: the response's `selected` field is already the file truth for round 1 (and `selection.json` exists by then because `discover` pre-seeded it).
+- The Apply flow's per-press behaviour was deliberately kept coarse: no instant on-toggle save, no undo. The map's "What's missing on purpose" list still mirrors that decision.
+
+Outstanding: a real on-device walkthrough would surface row density issues (one-liner vs multi-line id), spacing inside the checkbox, and whether the Apply button is sticky-bottom or inline. None of those need code changes today, but flag if they bite.

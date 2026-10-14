@@ -2,7 +2,7 @@
 
 Parent: [map](../map.md)
 Type: `wayfinder:task` (AFK)
-Status: open, blocked by tickets 01, 02, 03
+Status: closed (commit `beaccdb` on `feature/workspace-watchlist`)
 
 ## Question
 
@@ -30,3 +30,11 @@ Close out the effort:
 ## Closes when
 
 - README updated, `bun run typecheck` clean, `bun test` green, diff is minimal.
+## Resolution
+
+Closed as scoped:
+
+- README: added a `Workspace watchlist` section under "How it works" with the file location, first-run auto-seed, Apply UX, and the disconnect-keeps-selection decision. Discover bullet now mentions the intersection. Layout block gained `server/selection.ts`, `server/orgs.ts`, and `client/workspaces.tsx`. Tests paragraph reflects the current suite (no `member-vs-identity` claim, includes storage + intersection + disconnect-survival assertions).
+- Typecheck (`bun run typecheck`) clean.
+- Tests (`bun test`) — 51 pass / 0 fail across 4 files; 16 server tests (11 storage + 5 watchlist) + 1 client-side regression test for the disconnect-survival path.
+- Diff sanity: every commit on the branch stays in its lane — round-5 fix, wayfinder maps, server module + tests, picker UI, disconnect regression, README. No churn spilled onto unrelated files.

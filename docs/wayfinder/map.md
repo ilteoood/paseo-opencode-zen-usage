@@ -37,6 +37,9 @@ When this map closes, the day's first run shows every workspace, unchecking one 
 ### Closed tickets
 
 - [Server: selection storage, listWorkspaces RPC, discover filter, auto-seed](tickets/01-server-selection-and-discover-filter.md) (commit `06ac4d5`): `selection.json` (mode `0600`, atomic write) + `ensureSeeded` idempotent first-run auto-seed + `listAccounts = selection ∩ /api/orgs` + `listWorkspacesForUsage` + `listWorkspacesRpc` + `saveSelectionRpc`. 16 new tests; existing 34 regression-free.
+- [Connect-screen workspace picker prototype](tickets/02-connect-screen-picker-prototype.md) (commit `a75bf3c`): `client/workspaces.tsx` with the picker (lazy `listWorkspaces` RPC, staged vs initial sets, custom checkbox glyph, Apply button + `Apply (N)` label, busy spinner, error surface) wired into the existing connect screen behind a `status === "connected"` gate. Bypassed the HITL round-trip — user said "go for it automatically".
+- [Selection behavior on disconnect](tickets/03-selection-behavior-on-disconnect.md) (commit `7e21a7b`): keep `selection.json` across disconnect; regression test added to `test/auth.test.ts` asserting the file survives a disconnect → reconnect cycle.
+- [README and final verification](tickets/04-readme-and-final-verification.md) (commit `beaccdb`): README updated (Discover bullet, Workspace watchlist section, Layout, Tests paragraph); `bun run typecheck` clean; `bun test` 51/0/103; diff stays in lane across each commit.
 ## Not yet specified
 
 Fog toward the destination. Each item is specifiable on demand; nothing here is sharp enough to be a ticket yet.
@@ -65,4 +68,4 @@ Fog toward the destination. Each item is specifiable on demand; nothing here is 
 | 03 | Selection behavior on disconnect | task (AFK) | — |
 | 04 | README and final verification | task (AFK) | 01, 02, 03 |
 
-Frontier tickets on session restart: 01, 03 (open and unblocked). 02 and 04 unblock as their prerequisites close.
+All four tickets closed on `feature/workspace-watchlist`. Destination reached; further changes belong to a fresh effort (different map).
