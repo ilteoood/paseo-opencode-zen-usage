@@ -4,7 +4,7 @@ import type { Org } from "./types.ts";
 export async function listOrgs(token: string): Promise<Org[]> {
 	const list = await fetchJson<Org[] | { orgs?: Org[] }>(`${CONSOLE}/api/orgs`, token);
 	const records = Array.isArray(list) ? list : (list.orgs ?? []);
-	return records
+	const valid = records
 		.filter((org): org is Org => Boolean(org) && typeof org === "object")
 		.map((org) => ({
 			id: typeof org.id === "string" ? org.id : "",
@@ -16,4 +16,6 @@ export async function listOrgs(token: string): Promise<Org[]> {
 						: "Workspace",
 		}))
 		.filter((org) => org.id.length > 0);
+	const seen = new Set<string>();
+	return valid.filter((org) => (seen.has(org.id) ? false : (seen.add(org.id), true)));
 }

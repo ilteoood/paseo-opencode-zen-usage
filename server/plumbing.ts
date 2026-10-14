@@ -114,18 +114,6 @@ export async function refreshAccessToken(refreshToken: string): Promise<DeviceTo
 	});
 }
 
-function asDeviceError(body: unknown): DeviceError {
-	if (body && typeof body === "object") {
-		const error = (body as { error?: unknown }).error;
-		const description = (body as { error_description?: unknown }).error_description;
-		return {
-			error: typeof error === "string" ? error : "unknown",
-			error_description: typeof description === "string" ? description : undefined,
-		};
-	}
-	return { error: "unknown" };
-}
-
 export async function fetchJson<T>(
 	url: string,
 	token: string,
@@ -167,4 +155,3 @@ export async function readFreshCredential(): Promise<Credential | null> {
 	return ensureFreshCredential(current);
 }
 
-export { asDeviceError };

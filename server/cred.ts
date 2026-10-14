@@ -1,33 +1,17 @@
-import { chmod, mkdir, readFile, rename, unlink, writeFile } from "node:fs/promises";
-import { homedir } from "node:os";
-import { dirname, join, resolve } from "node:path";
+import { readFile, unlink } from "node:fs/promises";
+import { storagePath, writeJsonAtomic } from "./storage.ts";
 import type { Credential } from "./types.ts";
 
-function resolveCredDir(): string {
-	const xdgData = process.env.XDG_DATA_HOME;
-	if (xdgData && xdgData.trim().length > 0) return resolve(xdgData);
-	return join(homedir(), ".local", "share");
-}
+const CRED_FILENAME = "cred.json";
 
 export function credPath(): string {
-	return join(resolveCredDir(), "paseo-opencode-zen-usage", "cred.json");
-}
-
-export const CRED_PATH = credPath;
-
-async function writeJsonAtomic(path: string, value: unknown): Promise<void> {
-	await mkdir(dirname(path), { recursive: true });
-	const tmp = `${path}.${process.pid}.tmp`;
-	await writeFile(tmp, JSON.stringify(value, null, 2), { mode: 0o600 });
-	await chmod(tmp, 0o600);
-	await rename(tmp, path);
+	return storagePath(CRED_FILENAME);
 }
 
 export async function loadCredential(): Promise<Credential | null> {
-	const path = credPath();
 	let raw: string;
 	try {
-		raw = await readFile(path, "utf8");
+		raw = await readFile(credPath(), "utf8");
 	} catch (error) {
 		if ((error as NodeJS.ErrnoException)?.code === "ENOENT") return null;
 		throw error;
@@ -63,9 +47,8 @@ export async function saveCredential(credential: Credential): Promise<void> {
 }
 
 export async function clearCredential(): Promise<void> {
-	const path = credPath();
 	try {
-		await unlink(path);
+		await unlink(credPath());
 	} catch (error) {
 		if ((error as NodeJS.ErrnoException)?.code !== "ENOENT") throw error;
 	}

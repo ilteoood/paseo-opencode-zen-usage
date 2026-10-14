@@ -1,29 +1,13 @@
-import { chmod, mkdir, readFile, rename, unlink, writeFile } from "node:fs/promises";
-import { homedir } from "node:os";
-import { dirname, join, resolve } from "node:path";
+import { storagePath, readJsonFile, writeJsonAtomic } from "./storage.ts";
 
 export interface Selection {
 	workspaceIds: string[];
 }
 
-function resolveStorageDir(): string {
-	const xdgData = process.env.XDG_DATA_HOME;
-	if (xdgData && xdgData.trim().length > 0) return resolve(xdgData);
-	return join(homedir(), ".local", "share");
-}
+const SELECTION_FILENAME = "selection.json";
 
 export function selectionPath(): string {
-	return join(resolveStorageDir(), "paseo-opencode-zen-usage", "selection.json");
-}
-
-export const SELECTION_PATH = selectionPath;
-
-async function writeJsonAtomic(path: string, value: Selection): Promise<void> {
-	await mkdir(dirname(path), { recursive: true });
-	const tmp = `${path}.${process.pid}.tmp`;
-	await writeFile(tmp, JSON.stringify(value, null, 2), { mode: 0o600 });
-	await chmod(tmp, 0o600);
-	await rename(tmp, path);
+	return storagePath(SELECTION_FILENAME);
 }
 
 function parseSelection(raw: string): Selection | null {
@@ -44,16 +28,21 @@ function parseSelection(raw: string): Selection | null {
 	return { workspaceIds };
 }
 
+export type SelectionStatus =
+	| { kind: "absent" }
+	| { kind: "valid"; value: Selection }
+	| { kind: "corrupt" };
+
+export async function selectionStatus(): Promise<SelectionStatus> {
+	const raw = await readJsonFile(selectionPath());
+	if (raw === null) return { kind: "absent" };
+	const value = parseSelection(raw);
+	return value ? { kind: "valid", value } : { kind: "corrupt" };
+}
+
 export async function loadSelection(): Promise<Selection | null> {
-	const path = selectionPath();
-	let raw: string;
-	try {
-		raw = await readFile(path, "utf8");
-	} catch (error) {
-		if ((error as NodeJS.ErrnoException)?.code === "ENOENT") return null;
-		throw error;
-	}
-	return parseSelection(raw);
+	const status = await selectionStatus();
+	return status.kind === "valid" ? status.value : null;
 }
 
 export async function saveSelection(workspaceIds: string[]): Promise<void> {
@@ -69,18 +58,10 @@ export async function saveSelection(workspaceIds: string[]): Promise<void> {
 }
 
 export async function ensureSeeded(orgIds: string[]): Promise<Selection> {
-	const existing = await loadSelection();
-	if (existing) return existing;
+	const status = await selectionStatus();
+	if (status.kind === "valid") return status.value;
+	if (status.kind === "corrupt") return { workspaceIds: [] };
 	const seeded: Selection = { workspaceIds: [...orgIds] };
 	await writeJsonAtomic(selectionPath(), seeded);
 	return seeded;
-}
-
-export async function clearSelection(): Promise<void> {
-	const path = selectionPath();
-	try {
-		await unlink(path);
-	} catch (error) {
-		if ((error as NodeJS.ErrnoException)?.code !== "ENOENT") throw error;
-	}
 }

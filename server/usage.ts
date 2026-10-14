@@ -1,5 +1,3 @@
-import { createHash } from "node:crypto";
-import { z } from "zod";
 import {
 	hashAccountKey,
 	toneFromUsedPct,
@@ -48,9 +46,19 @@ async function watchedOrgs(token: string): Promise<{ orgs: Org[]; selectedIds: S
 
 export async function listWorkspacesForUsage(
 	token: string,
-): Promise<Array<{ id: string; name: string; selected: boolean }>> {
+): Promise<{ entries: Array<{ id: string; name: string; selected: boolean; present: boolean }>; totalCount: number }> {
 	const { orgs, selectedIds } = await watchedOrgs(token);
-	return orgs.map((org) => ({ id: org.id, name: org.name, selected: selectedIds.has(org.id) }));
+	const orgIds = new Set(orgs.map((org) => org.id));
+	const present = orgs.map((org) => ({
+		id: org.id,
+		name: org.name,
+		selected: selectedIds.has(org.id),
+		present: true,
+	}));
+	const ghosts = [...selectedIds]
+		.filter((id) => !orgIds.has(id))
+		.map((id) => ({ id, name: id, selected: true, present: false }));
+	return { entries: [...present, ...ghosts], totalCount: present.length };
 }
 
 export async function listAccounts(scope: UsageScope): Promise<UsageAccount[]> {
@@ -167,13 +175,7 @@ export async function fetchReport(input: unknown): Promise<UsageReport> {
 export const opencodeZenUsageSource: UsageSourceRegistration = {
 	id: "opencode-zen-usage",
 	label: "OpenCode Zen",
-	input: z.object({ workspaceId: z.string().min(1) }).strict(),
+	input: usageAccountInputSchema,
 	discover: listAccounts,
 	fetch: fetchReport,
 };
-
-export function deriveAccountKey(workspaceId: string, identitySubject: string | null): string {
-	return accountKeyFor(workspaceId, identitySubject);
-}
-
-export const __testing = { hash: createHash, accountKeyFor };

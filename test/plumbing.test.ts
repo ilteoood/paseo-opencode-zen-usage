@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { CRED_PATH, clearCredential, loadCredential, saveCredential } from "../server/cred.ts";
+import { credPath, clearCredential, loadCredential, saveCredential } from "../server/cred.ts";
 import {
 	CONSOLE,
 	HttpError,
@@ -70,7 +70,7 @@ describe("credential store", () => {
 
 	test("returns null when stored file is corrupt", async () => {
 		const fs = await import("node:fs/promises");
-		const path = CRED_PATH();
+		const path = credPath();
 		await fs.mkdir(path.replace(/\/cred\.json$/, ""), { recursive: true });
 		await fs.writeFile(path, "not-json");
 		expect(await loadCredential()).toBeNull();

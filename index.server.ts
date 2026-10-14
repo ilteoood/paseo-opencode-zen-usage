@@ -4,8 +4,9 @@ import {
 	pollDeviceSession,
 	startDeviceSession,
 } from "./server/auth.ts";
-import { loadCredential } from "./server/cred.ts";
+import { readFreshCredential } from "./server/plumbing.ts";
 import { listOrgs } from "./server/orgs.ts";
+import type { Credential } from "./server/types.ts";
 import { saveSelection } from "./server/selection.ts";
 import { listWorkspacesForUsage, opencodeZenUsageSource } from "./server/usage.ts";
 import {
@@ -17,9 +18,11 @@ import {
 	statusConnectRpc,
 } from "./shared/connect.ts";
 
-async function hydrateWorkspaceCount(): Promise<number | undefined> {
-	const credential = await loadCredential();
-	if (!credential) return undefined;
+function messageOf(cause: unknown): string {
+	return cause instanceof Error ? cause.message : String(cause);
+}
+
+async function hydrateWorkspaceCount(credential: Credential): Promise<number | undefined> {
 	try {
 		const orgs = await listOrgs(credential.access);
 		return orgs.length;
@@ -27,7 +30,6 @@ async function hydrateWorkspaceCount(): Promise<number | undefined> {
 		return undefined;
 	}
 }
-
 export default function contribute(server: PluginServerContext): () => void {
 	server.registerUsageSource(opencodeZenUsageSource);
 
@@ -39,35 +41,35 @@ export default function contribute(server: PluginServerContext): () => void {
 	server.handle(pollConnectRpc, async () => {
 		const state = await pollDeviceSession();
 		if (state.status === "connected") {
-			state.workspaceCount = await hydrateWorkspaceCount();
+			const credential = await readFreshCredential();
+			if (credential) {
+				state.workspaceCount = await hydrateWorkspaceCount(credential);
+			}
 		}
 		return state;
 	});
 
 	server.handle(statusConnectRpc, async () => {
-		const credential = await loadCredential();
+		const credential = await readFreshCredential();
 		if (!credential) {
 			return { status: "idle" as const };
 		}
-		const workspaceCount = await hydrateWorkspaceCount();
 		return {
 			status: "connected" as const,
 			identityEmail: credential.identity.email,
-			workspaceCount,
 		};
 	});
-
 	server.handle(disconnectConnectRpc, async () => {
 		return disconnect();
 	});
 
 	server.handle(listWorkspacesRpc, async () => {
-		const credential = await loadCredential();
-		if (!credential) return { entries: [] };
+		const credential = await readFreshCredential();
+		if (!credential) return { entries: [], totalCount: null, error: "not connected" };
 		try {
-			return { entries: await listWorkspacesForUsage(credential.access) };
-		} catch {
-			return { entries: [] };
+			return await listWorkspacesForUsage(credential.access);
+		} catch (cause) {
+			return { entries: [], totalCount: null, error: messageOf(cause) };
 		}
 	});
 

@@ -29,3 +29,26 @@ export function themedStyles(theme: PluginTheme): StyleSheet {
 		code: "Menlo",
 	};
 }
+
+export interface ButtonOptions {
+	pressed: boolean;
+	busy: boolean;
+	variant?: "primary" | "danger";
+	fill?: boolean;
+	marginTop?: number;
+}
+
+export function button(styles: StyleSheet, options: ButtonOptions) {
+	const color = options.variant === "danger" ? styles.danger : styles.accent;
+	return {
+		marginTop: options.marginTop ?? 0,
+		paddingVertical: 12,
+		paddingHorizontal: 16,
+		borderRadius: 8,
+		borderWidth: 1,
+		borderColor: color,
+		alignItems: "center" as const,
+		opacity: options.pressed || options.busy ? 0.6 : 1,
+		backgroundColor: options.pressed && options.fill ? color : "transparent",
+	};
+}

@@ -3,14 +3,16 @@ import { ActivityIndicator, Pressable, Text, View } from "react-native";
 import { useRpc } from "@getpaseo/plugin/client";
 import { listWorkspacesRpc, saveSelectionRpc } from "../shared/connect.ts";
 import type { WorkspaceEntry } from "../shared/schema.ts";
-import type { StyleSheet } from "./styles.ts";
+import { button, type StyleSheet } from "./styles.ts";
+import { messageOf } from "./format.ts";
 
 interface WorkspacesPickerProps {
 	styles: StyleSheet;
 	compact: boolean;
+	onLoaded?: (totalCount: number | null) => void;
 }
 
-export function WorkspacesPicker({ styles, compact }: WorkspacesPickerProps) {
+export function WorkspacesPicker({ styles, compact, onLoaded }: WorkspacesPickerProps) {
 	const list = useRpc(listWorkspacesRpc);
 	const save = useRpc(saveSelectionRpc);
 	const [entries, setEntries] = useState<WorkspaceEntry[] | null>(null);
@@ -26,10 +28,14 @@ export function WorkspacesPicker({ styles, compact }: WorkspacesPickerProps) {
 				const result = await list({});
 				if (cancelled) return;
 				const next = result?.entries ?? [];
-				setEntries(next);
-				const selected = new Set(next.filter((entry) => entry.selected).map((entry) => entry.id));
-				setInitial(selected);
-				setStaged(selected);
+				if (!cancelled) {
+					setEntries(next);
+					if (result?.error) setError(result.error);
+					onLoaded?.(result.totalCount ?? null);
+					const selected = new Set(next.filter((entry) => entry.selected).map((entry) => entry.id));
+					setInitial(selected);
+					setStaged(selected);
+				}
 			} catch (cause) {
 				if (!cancelled) {
 					setEntries([]);
@@ -85,7 +91,8 @@ export function WorkspacesPicker({ styles, compact }: WorkspacesPickerProps) {
 			{entries.map((entry) => (
 				<Pressable
 					key={entry.id}
-					onPress={() => toggle(entry.id)}
+					onPress={() => entry.present && toggle(entry.id)}
+					disabled={!entry.present}
 					style={({ pressed }) => ({
 						flexDirection: "row",
 						alignItems: "center",
@@ -93,7 +100,7 @@ export function WorkspacesPicker({ styles, compact }: WorkspacesPickerProps) {
 						paddingVertical: 8,
 						paddingHorizontal: 4,
 						borderRadius: 6,
-						opacity: pressed ? 0.7 : 1,
+						opacity: entry.present ? (pressed ? 0.7 : 1) : 0.4,
 					})}
 				>
 					<Checkbox checked={staged.has(entry.id)} accent={styles.accent} />
@@ -107,6 +114,9 @@ export function WorkspacesPicker({ styles, compact }: WorkspacesPickerProps) {
 						>
 							{entry.id}
 						</Text>
+						{!entry.present ? (
+							<Text style={{ color: styles.danger, fontSize: 11 }}>no longer in your orgs</Text>
+						) : null}
 					</View>
 				</Pressable>
 			))}
@@ -114,7 +124,7 @@ export function WorkspacesPicker({ styles, compact }: WorkspacesPickerProps) {
 			<Pressable
 				onPress={onApply}
 				disabled={busy || diffCount === 0}
-				style={({ pressed }) => pickerButton(styles, pressed, busy || diffCount === 0)}
+				style={({ pressed }) => button(styles, { pressed, busy: busy || diffCount === 0, fill: true, marginTop: 4 })}
 			>
 				{busy ? (
 					<ActivityIndicator color={styles.accentForeground} />
@@ -147,21 +157,3 @@ function Checkbox({ checked, accent }: { checked: boolean; accent: string }) {
 	);
 }
 
-function pickerButton(styles: StyleSheet, pressed: boolean, busy: boolean) {
-	return {
-		marginTop: 4,
-		paddingVertical: 10,
-		paddingHorizontal: 16,
-		borderRadius: 8,
-		borderWidth: 1,
-		borderColor: styles.accent,
-		alignItems: "center" as const,
-		opacity: pressed || busy ? 0.6 : 1,
-		backgroundColor: pressed ? styles.accent : "transparent",
-	};
-}
-
-function messageOf(cause: unknown): string {
-	if (cause instanceof Error) return cause.message;
-	return String(cause);
-}

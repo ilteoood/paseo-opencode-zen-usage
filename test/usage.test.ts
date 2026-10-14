@@ -5,9 +5,9 @@ import { join } from "node:path";
 import { saveCredential } from "../server/cred.ts";
 import { loadSelection, saveSelection } from "../server/selection.ts";
 import { fetchReport, listAccounts, listWorkspacesForUsage } from "../server/usage.ts";
+import { readFreshCredential } from "../server/plumbing.ts";
 import type { Credential } from "../server/types.ts";
 import { usageAccountInputSchema } from "../shared/schema.ts";
-
 interface FetchCall {
 	url: string;
 	headers?: Record<string, string>;
@@ -260,10 +260,47 @@ describe("workspace watchlist", () => {
 		]);
 		await saveSelection(["wrk_alpha"]);
 		const credentialSnap = credential();
-		const entries = await listWorkspacesForUsage(credentialSnap.access);
-		expect(entries).toEqual([
-			{ id: "wrk_alpha", name: "Alpha", selected: true },
-			{ id: "wrk_beta", name: "Beta", selected: false },
+		const result = await listWorkspacesForUsage(credentialSnap.access);
+		expect(result.totalCount).toBe(2);
+		expect(result.entries).toEqual([
+			{ id: "wrk_alpha", name: "Alpha", selected: true, present: true },
+			{ id: "wrk_beta", name: "Beta", selected: false, present: true },
 		]);
+	});
+
+	test("listWorkspacesForUsage returns ghost entries for picks no longer in /api/orgs", async () => {
+		await respondOrgs([{ id: "wrk_alpha", name: "Alpha" }]);
+		await saveSelection(["wrk_alpha", "wrk_ghost"]);
+		const credentialSnap = credential();
+		const result = await listWorkspacesForUsage(credentialSnap.access);
+		expect(result.totalCount).toBe(1);
+		expect(result.entries).toEqual([
+			{ id: "wrk_alpha", name: "Alpha", selected: true, present: true },
+			{ id: "wrk_ghost", name: "wrk_ghost", selected: true, present: false },
+		]);
+	});
+
+	test("listWorkspacesForUsage works after refreshing a near-expiry credential", async () => {
+		await saveCredential(credential({ expires: Date.now() + 30_000, refresh: "rotating" }));
+		responses.push({
+			status: 200,
+			body: { access_token: "rotated-acc", refresh_token: "rotated-ref", expires_in: 3600 },
+		});
+		responses.push({
+			status: 200,
+			body: [
+				{ id: "wrk_alpha", name: "Alpha" },
+				{ id: "wrk_beta", name: "Beta" },
+			],
+		});
+		const fresh = await readFreshCredential();
+		expect(fresh).not.toBeNull();
+		const result = await listWorkspacesForUsage(fresh!.access);
+		expect(result.totalCount).toBe(2);
+		expect(result.entries.map((entry) => entry.id)).toEqual(["wrk_alpha", "wrk_beta"]);
+		const orgsCall = calls.find((call) => call.url.includes("/api/orgs"));
+		expect((orgsCall?.headers as Record<string, string> | undefined)?.Authorization).toBe(
+			"Bearer rotated-acc",
+		);
 	});
 });

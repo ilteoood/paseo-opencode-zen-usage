@@ -3,13 +3,12 @@ import { mkdtempSync, rmSync, statSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
-	SELECTION_PATH,
-	clearSelection,
 	ensureSeeded,
 	loadSelection,
 	saveSelection,
+	selectionPath,
+	selectionStatus,
 } from "../server/selection.ts";
-
 let installed: string | null = null;
 
 beforeEach(() => {
@@ -37,7 +36,7 @@ describe("selection store", () => {
 
 	test("writes the file with mode 0600", async () => {
 		await saveSelection(["wrk_a"]);
-		const mode = statSync(SELECTION_PATH()).mode & 0o777;
+		const mode = statSync(selectionPath()).mode & 0o777;
 		expect(mode).toBe(0o600);
 	});
 
@@ -72,7 +71,7 @@ describe("selection store", () => {
 
 	test("returns null when stored file is corrupt", async () => {
 		const fs = await import("node:fs/promises");
-		const path = SELECTION_PATH();
+		const path = selectionPath();
 		await fs.mkdir(path.replace(/\/selection\.json$/, ""), { recursive: true });
 		await fs.writeFile(path, "not-json");
 		expect(await loadSelection()).toBeNull();
@@ -80,16 +79,42 @@ describe("selection store", () => {
 
 	test("returns null when stored file has wrong shape", async () => {
 		const fs = await import("node:fs/promises");
-		const path = SELECTION_PATH();
+		const path = selectionPath();
 		await fs.mkdir(path.replace(/\/selection\.json$/, ""), { recursive: true });
 		await fs.writeFile(path, JSON.stringify({ wrong: "shape" }));
 		expect(await loadSelection()).toBeNull();
 	});
 
-	test("clearSelection is idempotent", async () => {
+
+	test("selectionStatus reports absent when the file is missing", async () => {
+		expect(await selectionStatus()).toEqual({ kind: "absent" });
+	});
+
+	test("selectionStatus reports valid for a well-formed file", async () => {
 		await saveSelection(["wrk_a"]);
-		await clearSelection();
-		await clearSelection();
+		expect(await selectionStatus()).toEqual({
+			kind: "valid",
+			value: { workspaceIds: ["wrk_a"] },
+		});
+	});
+
+	test("selectionStatus reports corrupt for a non-JSON file", async () => {
+		const fs = await import("node:fs/promises");
+		const path = selectionPath();
+		await fs.mkdir(path.replace(/\/selection\.json$/, ""), { recursive: true });
+		await fs.writeFile(path, "not-json");
+		expect(await selectionStatus()).toEqual({ kind: "corrupt" });
+	});
+
+	test("ensureSeeded leaves a corrupt file untouched and returns empty", async () => {
+		const fs = await import("node:fs/promises");
+		const path = selectionPath();
+		await fs.mkdir(path.replace(/\/selection\.json$/, ""), { recursive: true });
+		await fs.writeFile(path, "not-json");
+		const result = await ensureSeeded(["wrk_a", "wrk_b"]);
+		expect(result).toEqual({ workspaceIds: [] });
 		expect(await loadSelection()).toBeNull();
+		const raw = await fs.readFile(path, "utf8");
+		expect(raw).toBe("not-json");
 	});
 });

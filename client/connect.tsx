@@ -12,7 +12,8 @@ import {
 	statusConnectRpc,
 } from "../shared/connect.ts";
 import type { ConnectState } from "../shared/schema.ts";
-import { themedStyles, type StyleSheet } from "./styles.ts";
+import { themedStyles, button, type StyleSheet } from "./styles.ts";
+import { messageOf } from "./format.ts";
 import { WorkspacesPicker } from "./workspaces.tsx";
 
 const IDLE_STATE: ConnectState = { status: "idle" };
@@ -26,6 +27,7 @@ export function ConnectScreen({ theme, layout }: PluginScreenProps) {
 	const [state, setState] = useState<ConnectState>(IDLE_STATE);
 	const [busy, setBusy] = useState(false);
 	const [error, setError] = useState<string | null>(null);
+	const [totalCount, setTotalCount] = useState<number | null>(null);
 
 	useEffect(() => {
 		let cancelled = false;
@@ -102,7 +104,7 @@ export function ConnectScreen({ theme, layout }: PluginScreenProps) {
 				{state.status === "connected" ? (
 					<Text style={{ color: styles.text, fontSize: 14 }}>
 						Connected{state.identityEmail ? ` as ${state.identityEmail}` : ""}
-						{state.workspaceCount ? ` — ${state.workspaceCount} workspace${state.workspaceCount === 1 ? "" : "s"}` : ""}
+						{totalCount ? ` — ${totalCount} workspace${totalCount === 1 ? "" : "s"}` : ""}
 					</Text>
 				) : state.status === "pending" ? (
 					<Pending state={state} styles={styles} layout={layout} />
@@ -114,7 +116,7 @@ export function ConnectScreen({ theme, layout }: PluginScreenProps) {
 
 			{state.status === "connected" ? (
 				<Section title="Workspaces" styles={styles}>
-					<WorkspacesPicker styles={styles} compact={layout.compact} />
+					<WorkspacesPicker styles={styles} compact={layout.compact} onLoaded={setTotalCount} />
 				</Section>
 			) : null}
 
@@ -123,7 +125,7 @@ export function ConnectScreen({ theme, layout }: PluginScreenProps) {
 					<Pressable
 						onPress={onDisconnect}
 						disabled={busy}
-						style={({ pressed }) => buttonStyle(styles, pressed, busy, "danger")}
+						style={({ pressed }) => button(styles, { pressed, busy, variant: "danger" })}
 					>
 						{busy ? (
 							<ActivityIndicator color={styles.text} />
@@ -135,7 +137,7 @@ export function ConnectScreen({ theme, layout }: PluginScreenProps) {
 					<Pressable
 						onPress={onStart}
 						disabled={busy}
-						style={({ pressed }) => buttonStyle(styles, pressed, busy, "primary")}
+						style={({ pressed }) => button(styles, { pressed, busy, variant: "primary" })}
 					>
 						{busy ? (
 							<ActivityIndicator color={styles.text} />
@@ -212,18 +214,6 @@ function Pending({ state, styles, layout }: PendingProps) {
 	);
 }
 
-function buttonStyle(styles: StyleSheet, pressed: boolean, busy: boolean, variant: "primary" | "danger") {
-	const color = variant === "danger" ? styles.danger : styles.accent;
-	return {
-		paddingVertical: 12,
-		paddingHorizontal: 16,
-		borderRadius: 8,
-		borderWidth: 1,
-		borderColor: color,
-		alignItems: "center" as const,
-		opacity: pressed || busy ? 0.6 : 1,
-	};
-}
 
 function expiresInLabel(expiresAt: number): string {
 	const remaining = Math.max(0, Math.floor((expiresAt - Date.now()) / 1000));
@@ -232,7 +222,3 @@ function expiresInLabel(expiresAt: number): string {
 	return `${minutes}m ${seconds.toString().padStart(2, "0")}s`;
 }
 
-function messageOf(cause: unknown): string {
-	if (cause instanceof Error) return cause.message;
-	return String(cause);
-}
