@@ -10,7 +10,7 @@ console hands back, so each card shows your own row, not the workspace total.
 ## Install
 
 ```sh
-paseo plugin add ilteoood/paseo-opencode-zen-usage
+paseo plugin add git:https://github.com/ilteoood/paseo-opencode-zen-usage
 ```
 
 Requires Paseo 0.11+ on the daemon.
