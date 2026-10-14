@@ -12,7 +12,8 @@ import {
 	statusConnectRpc,
 } from "../shared/connect.ts";
 import type { ConnectState } from "../shared/schema.ts";
-import { themedStyles, type StyleSheet } from "./styles.ts";
+import { themedStyles, button, type StyleSheet } from "./styles.ts";
+import { messageOf } from "./format.ts";
 import { WorkspacesPicker } from "./workspaces.tsx";
 
 const IDLE_STATE: ConnectState = { status: "idle" };
@@ -123,7 +124,7 @@ export function ConnectScreen({ theme, layout }: PluginScreenProps) {
 					<Pressable
 						onPress={onDisconnect}
 						disabled={busy}
-						style={({ pressed }) => buttonStyle(styles, pressed, busy, "danger")}
+						style={({ pressed }) => button(styles, { pressed, busy, variant: "danger" })}
 					>
 						{busy ? (
 							<ActivityIndicator color={styles.text} />
@@ -135,7 +136,7 @@ export function ConnectScreen({ theme, layout }: PluginScreenProps) {
 					<Pressable
 						onPress={onStart}
 						disabled={busy}
-						style={({ pressed }) => buttonStyle(styles, pressed, busy, "primary")}
+						style={({ pressed }) => button(styles, { pressed, busy, variant: "primary" })}
 					>
 						{busy ? (
 							<ActivityIndicator color={styles.text} />
@@ -212,18 +213,6 @@ function Pending({ state, styles, layout }: PendingProps) {
 	);
 }
 
-function buttonStyle(styles: StyleSheet, pressed: boolean, busy: boolean, variant: "primary" | "danger") {
-	const color = variant === "danger" ? styles.danger : styles.accent;
-	return {
-		paddingVertical: 12,
-		paddingHorizontal: 16,
-		borderRadius: 8,
-		borderWidth: 1,
-		borderColor: color,
-		alignItems: "center" as const,
-		opacity: pressed || busy ? 0.6 : 1,
-	};
-}
 
 function expiresInLabel(expiresAt: number): string {
 	const remaining = Math.max(0, Math.floor((expiresAt - Date.now()) / 1000));
@@ -232,7 +221,3 @@ function expiresInLabel(expiresAt: number): string {
 	return `${minutes}m ${seconds.toString().padStart(2, "0")}s`;
 }
 
-function messageOf(cause: unknown): string {
-	if (cause instanceof Error) return cause.message;
-	return String(cause);
-}

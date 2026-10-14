@@ -3,7 +3,8 @@ import { ActivityIndicator, Pressable, Text, View } from "react-native";
 import { useRpc } from "@getpaseo/plugin/client";
 import { listWorkspacesRpc, saveSelectionRpc } from "../shared/connect.ts";
 import type { WorkspaceEntry } from "../shared/schema.ts";
-import type { StyleSheet } from "./styles.ts";
+import { button, type StyleSheet } from "./styles.ts";
+import { messageOf } from "./format.ts";
 
 interface WorkspacesPickerProps {
 	styles: StyleSheet;
@@ -26,11 +27,13 @@ export function WorkspacesPicker({ styles, compact }: WorkspacesPickerProps) {
 				const result = await list({});
 				if (cancelled) return;
 				const next = result?.entries ?? [];
-				setEntries(next);
-				if (result?.error) setError(result.error);
-				const selected = new Set(next.filter((entry) => entry.selected).map((entry) => entry.id));
-				setInitial(selected);
-				setStaged(selected);
+				if (!cancelled) {
+					setEntries(next);
+					if (result?.error) setError(result.error);
+					const selected = new Set(next.filter((entry) => entry.selected).map((entry) => entry.id));
+					setInitial(selected);
+					setStaged(selected);
+				}
 			} catch (cause) {
 				if (!cancelled) {
 					setEntries([]);
@@ -119,7 +122,7 @@ export function WorkspacesPicker({ styles, compact }: WorkspacesPickerProps) {
 			<Pressable
 				onPress={onApply}
 				disabled={busy || diffCount === 0}
-				style={({ pressed }) => pickerButton(styles, pressed, busy || diffCount === 0)}
+				style={({ pressed }) => button(styles, { pressed, busy: busy || diffCount === 0, fill: true, marginTop: 4 })}
 			>
 				{busy ? (
 					<ActivityIndicator color={styles.accentForeground} />
@@ -152,21 +155,3 @@ function Checkbox({ checked, accent }: { checked: boolean; accent: string }) {
 	);
 }
 
-function pickerButton(styles: StyleSheet, pressed: boolean, busy: boolean) {
-	return {
-		marginTop: 4,
-		paddingVertical: 10,
-		paddingHorizontal: 16,
-		borderRadius: 8,
-		borderWidth: 1,
-		borderColor: styles.accent,
-		alignItems: "center" as const,
-		opacity: pressed || busy ? 0.6 : 1,
-		backgroundColor: pressed ? styles.accent : "transparent",
-	};
-}
-
-function messageOf(cause: unknown): string {
-	if (cause instanceof Error) return cause.message;
-	return String(cause);
-}
