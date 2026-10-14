@@ -45,15 +45,8 @@ function parseSelection(raw: string): Selection | null {
 }
 
 export async function loadSelection(): Promise<Selection | null> {
-	const path = selectionPath();
-	let raw: string;
-	try {
-		raw = await readFile(path, "utf8");
-	} catch (error) {
-		if ((error as NodeJS.ErrnoException)?.code === "ENOENT") return null;
-		throw error;
-	}
-	return parseSelection(raw);
+	const status = await selectionStatus();
+	return status.kind === "valid" ? status.value : null;
 }
 
 export async function saveSelection(workspaceIds: string[]): Promise<void> {
@@ -68,19 +61,29 @@ export async function saveSelection(workspaceIds: string[]): Promise<void> {
 	await writeJsonAtomic(selectionPath(), { workspaceIds: deduped });
 }
 
+export type SelectionStatus =
+	| { kind: "absent" }
+	| { kind: "valid"; value: Selection }
+	| { kind: "corrupt" };
+
+export async function selectionStatus(): Promise<SelectionStatus> {
+	const path = selectionPath();
+	let raw: string;
+	try {
+		raw = await readFile(path, "utf8");
+	} catch (error) {
+		if ((error as NodeJS.ErrnoException)?.code === "ENOENT") return { kind: "absent" };
+		throw error;
+	}
+	const value = parseSelection(raw);
+	return value ? { kind: "valid", value } : { kind: "corrupt" };
+}
+
 export async function ensureSeeded(orgIds: string[]): Promise<Selection> {
-	const existing = await loadSelection();
-	if (existing) return existing;
+	const status = await selectionStatus();
+	if (status.kind === "valid") return status.value;
+	if (status.kind === "corrupt") return { workspaceIds: [] };
 	const seeded: Selection = { workspaceIds: [...orgIds] };
 	await writeJsonAtomic(selectionPath(), seeded);
 	return seeded;
-}
-
-export async function clearSelection(): Promise<void> {
-	const path = selectionPath();
-	try {
-		await unlink(path);
-	} catch (error) {
-		if ((error as NodeJS.ErrnoException)?.code !== "ENOENT") throw error;
-	}
 }

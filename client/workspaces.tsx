@@ -27,6 +27,7 @@ export function WorkspacesPicker({ styles, compact }: WorkspacesPickerProps) {
 				if (cancelled) return;
 				const next = result?.entries ?? [];
 				setEntries(next);
+				if (result?.error) setError(result.error);
 				const selected = new Set(next.filter((entry) => entry.selected).map((entry) => entry.id));
 				setInitial(selected);
 				setStaged(selected);

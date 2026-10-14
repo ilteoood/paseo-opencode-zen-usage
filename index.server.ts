@@ -17,6 +17,11 @@ import {
 	startConnectRpc,
 	statusConnectRpc,
 } from "./shared/connect.ts";
+
+function messageOf(cause: unknown): string {
+	return cause instanceof Error ? cause.message : String(cause);
+}
+
 async function hydrateWorkspaceCount(credential: Credential): Promise<number | undefined> {
 	try {
 		const orgs = await listOrgs(credential.access);
@@ -63,11 +68,11 @@ export default function contribute(server: PluginServerContext): () => void {
 
 	server.handle(listWorkspacesRpc, async () => {
 		const credential = await readFreshCredential();
-		if (!credential) return { entries: [] };
+		if (!credential) return { entries: [], error: "not connected" };
 		try {
 			return { entries: await listWorkspacesForUsage(credential.access) };
-		} catch {
-			return { entries: [] };
+		} catch (cause) {
+			return { entries: [], error: messageOf(cause) };
 		}
 	});
 

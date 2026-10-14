@@ -43,10 +43,10 @@ export type WorkspaceEntry = z.infer<typeof workspaceEntrySchema>;
 export const listWorkspacesOutputSchema = z
 	.object({
 		entries: z.array(workspaceEntrySchema),
+		error: z.string().nullish(),
 	})
 	.strict();
 export type ListWorkspacesOutput = z.infer<typeof listWorkspacesOutputSchema>;
-
 export const saveSelectionInputSchema = z
 	.object({
 		workspaceIds: z.array(z.string().min(1)),
