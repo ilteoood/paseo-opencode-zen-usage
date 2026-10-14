@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { CONSOLE } from "../server/plumbing.ts";
 import { disconnect, pollDeviceSession, startDeviceSession } from "../server/auth.ts";
 import { loadCredential } from "../server/cred.ts";
+import { loadSelection, saveSelection } from "../server/selection.ts";
 
 interface FetchCall {
 	url: string;
@@ -145,5 +146,20 @@ describe("disconnect", () => {
 		const result = await disconnect();
 		expect(result.ok).toBe(true);
 		expect(await loadCredential()).toBeNull();
+	});
+test("preserves any selection.json across disconnect", async () => {
+		responses.push({ status: 200, body: START_BODY });
+		await startDeviceSession(now);
+		responses.push({
+			status: 200,
+			body: { access_token: accessTokenJws("carol@example.com"), refresh_token: "r", expires_in: 3600 },
+		});
+		await pollDeviceSession(now + 1_000);
+		await saveSelection(["wrk_a", "wrk_b"]);
+		expect(await loadSelection()).toEqual({ workspaceIds: ["wrk_a", "wrk_b"] });
+		const result = await disconnect();
+		expect(result.ok).toBe(true);
+		expect(await loadCredential()).toBeNull();
+		expect(await loadSelection()).toEqual({ workspaceIds: ["wrk_a", "wrk_b"] });
 	});
 });
