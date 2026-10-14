@@ -5,9 +5,9 @@ import { join } from "node:path";
 import { saveCredential } from "../server/cred.ts";
 import { loadSelection, saveSelection } from "../server/selection.ts";
 import { fetchReport, listAccounts, listWorkspacesForUsage } from "../server/usage.ts";
+import { readFreshCredential } from "../server/plumbing.ts";
 import type { Credential } from "../server/types.ts";
 import { usageAccountInputSchema } from "../shared/schema.ts";
-
 interface FetchCall {
 	url: string;
 	headers?: Record<string, string>;
@@ -265,5 +265,28 @@ describe("workspace watchlist", () => {
 			{ id: "wrk_alpha", name: "Alpha", selected: true },
 			{ id: "wrk_beta", name: "Beta", selected: false },
 		]);
+	});
+
+	test("listWorkspacesForUsage works after refreshing a near-expiry credential", async () => {
+		await saveCredential(credential({ expires: Date.now() + 30_000, refresh: "rotating" }));
+		responses.push({
+			status: 200,
+			body: { access_token: "rotated-acc", refresh_token: "rotated-ref", expires_in: 3600 },
+		});
+		responses.push({
+			status: 200,
+			body: [
+				{ id: "wrk_alpha", name: "Alpha" },
+				{ id: "wrk_beta", name: "Beta" },
+			],
+		});
+		const fresh = await readFreshCredential();
+		expect(fresh).not.toBeNull();
+		const entries = await listWorkspacesForUsage(fresh!.access);
+		expect(entries.map((entry) => entry.id)).toEqual(["wrk_alpha", "wrk_beta"]);
+		const orgsCall = calls.find((call) => call.url.includes("/api/orgs"));
+		expect((orgsCall?.headers as Record<string, string> | undefined)?.Authorization).toBe(
+			"Bearer rotated-acc",
+		);
 	});
 });
