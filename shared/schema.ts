@@ -36,10 +36,10 @@ export const workspaceEntrySchema = z
 		id: z.string().min(1),
 		name: z.string().min(1),
 		selected: z.boolean(),
+		present: z.boolean(),
 	})
 	.strict();
 export type WorkspaceEntry = z.infer<typeof workspaceEntrySchema>;
-
 export const listWorkspacesOutputSchema = z
 	.object({
 		entries: z.array(workspaceEntrySchema),

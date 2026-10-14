@@ -262,8 +262,19 @@ describe("workspace watchlist", () => {
 		const credentialSnap = credential();
 		const entries = await listWorkspacesForUsage(credentialSnap.access);
 		expect(entries).toEqual([
-			{ id: "wrk_alpha", name: "Alpha", selected: true },
-			{ id: "wrk_beta", name: "Beta", selected: false },
+			{ id: "wrk_alpha", name: "Alpha", selected: true, present: true },
+			{ id: "wrk_beta", name: "Beta", selected: false, present: true },
+		]);
+	});
+
+	test("listWorkspacesForUsage returns ghost entries for picks no longer in /api/orgs", async () => {
+		await respondOrgs([{ id: "wrk_alpha", name: "Alpha" }]);
+		await saveSelection(["wrk_alpha", "wrk_ghost"]);
+		const credentialSnap = credential();
+		const entries = await listWorkspacesForUsage(credentialSnap.access);
+		expect(entries).toEqual([
+			{ id: "wrk_alpha", name: "Alpha", selected: true, present: true },
+			{ id: "wrk_ghost", name: "wrk_ghost", selected: true, present: false },
 		]);
 	});
 

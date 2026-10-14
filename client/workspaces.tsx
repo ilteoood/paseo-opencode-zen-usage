@@ -85,7 +85,8 @@ export function WorkspacesPicker({ styles, compact }: WorkspacesPickerProps) {
 			{entries.map((entry) => (
 				<Pressable
 					key={entry.id}
-					onPress={() => toggle(entry.id)}
+					onPress={() => entry.present && toggle(entry.id)}
+					disabled={!entry.present}
 					style={({ pressed }) => ({
 						flexDirection: "row",
 						alignItems: "center",
@@ -93,7 +94,7 @@ export function WorkspacesPicker({ styles, compact }: WorkspacesPickerProps) {
 						paddingVertical: 8,
 						paddingHorizontal: 4,
 						borderRadius: 6,
-						opacity: pressed ? 0.7 : 1,
+						opacity: entry.present ? (pressed ? 0.7 : 1) : 0.4,
 					})}
 				>
 					<Checkbox checked={staged.has(entry.id)} accent={styles.accent} />
@@ -107,6 +108,9 @@ export function WorkspacesPicker({ styles, compact }: WorkspacesPickerProps) {
 						>
 							{entry.id}
 						</Text>
+						{!entry.present ? (
+							<Text style={{ color: styles.danger, fontSize: 11 }}>no longer in your orgs</Text>
+						) : null}
 					</View>
 				</Pressable>
 			))}
