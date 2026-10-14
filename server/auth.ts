@@ -74,12 +74,14 @@ export async function startDeviceSession(now = Date.now()): Promise<ConnectState
 }
 
 export async function pollDeviceSession(now = Date.now()): Promise<ConnectState> {
-	if (!current) return snapshot("idle");
-	if (now >= current.expiresAt) {
+	const session = current;
+	if (!session) return snapshot("idle");
+	if (now >= session.expiresAt) {
 		current = null;
 		return snapshot("expired");
 	}
-	const response = await exchangeDeviceCode(current.deviceCode);
+	const response = await exchangeDeviceCode(session.deviceCode);
+	if (current !== session) return snapshot("idle");
 	if (response.kind === "token") {
 		const identity = decodeIdentity(response.data.access_token);
 		const credential = {
@@ -95,11 +97,11 @@ export async function pollDeviceSession(now = Date.now()): Promise<ConnectState>
 	}
 	const error = response.data.error;
 	if (error === "authorization_pending") {
-		return snapshot("pending", pendingSnapshot(current, now));
+		return snapshot("pending", pendingSnapshot(session));
 	}
 	if (error === "slow_down") {
-		current.intervalMs = Math.min(current.intervalMs + SLOW_DOWN_PENALTY_MS, 30_000);
-		return snapshot("pending", pendingSnapshot(current, now));
+		session.intervalMs = Math.min(session.intervalMs + SLOW_DOWN_PENALTY_MS, 30_000);
+		return snapshot("pending", pendingSnapshot(session));
 	}
 	if (error === "access_denied") {
 		current = null;
@@ -109,7 +111,7 @@ export async function pollDeviceSession(now = Date.now()): Promise<ConnectState>
 	return snapshot("expired", { error: `${error}: ${response.data.error_description ?? ""}`.trim() });
 }
 
-function pendingSnapshot(session: PendingSession, now: number): Pick<ConnectState, "userCode" | "verificationUri" | "expiresAt" | "pollIntervalSeconds"> {
+function pendingSnapshot(session: PendingSession): Pick<ConnectState, "userCode" | "verificationUri" | "expiresAt" | "pollIntervalSeconds"> {
 	const pollIntervalSeconds = Math.max(1, Math.ceil(session.intervalMs / 1_000));
 	return {
 		userCode: session.userCode,
@@ -118,7 +120,6 @@ function pendingSnapshot(session: PendingSession, now: number): Pick<ConnectStat
 		pollIntervalSeconds,
 	};
 }
-
 export async function disconnect(): Promise<{ ok: boolean }> {
 	current = null;
 	await clearCredential();

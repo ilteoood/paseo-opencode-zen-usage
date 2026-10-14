@@ -15,7 +15,7 @@ import type {
 
 import { CONSOLE, HttpError, fetchWithWorkspace, readFreshCredential } from "./plumbing.ts";
 import { listOrgs } from "./orgs.ts";
-import { ensureSeeded } from "./selection.ts";
+import { ensureSeeded, loadSelection } from "./selection.ts";
 import type { Org, CurrentBudget } from "./types.ts";
 import { usageAccountInputSchema } from "../shared/schema.ts";
 
@@ -148,6 +148,13 @@ export async function fetchReport(input: unknown): Promise<UsageReport> {
 		return unavailable({
 			kind: "expired",
 			expiresAt: new Date().toISOString(),
+		});
+	}
+	const selection = await loadSelection();
+	if (!selection || !selection.workspaceIds.includes(workspaceId)) {
+		return unavailable({
+			kind: "no_quota",
+			detail: "workspace is not on the watchlist",
 		});
 	}
 	let budgets: CurrentBudget[];

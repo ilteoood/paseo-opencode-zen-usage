@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { chmod, mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { dirname, join, resolve } from "node:path";
@@ -14,7 +15,7 @@ export function storagePath(filename: string): string {
 	return join(resolveStorageDir(), STORAGE_SUBDIR, filename);
 }
 
-export async function readJsonFile<T>(path: string): Promise<string | null> {
+export async function readJsonFile(path: string): Promise<string | null> {
 	try {
 		return await readFile(path, "utf8");
 	} catch (error) {
@@ -25,7 +26,7 @@ export async function readJsonFile<T>(path: string): Promise<string | null> {
 
 export async function writeJsonAtomic<T>(path: string, value: T): Promise<void> {
 	await mkdir(dirname(path), { recursive: true });
-	const tmp = `${path}.${process.pid}.tmp`;
+	const tmp = `${path}.${process.pid}.${randomUUID()}.tmp`;
 	await writeFile(tmp, JSON.stringify(value, null, 2), { mode: 0o600 });
 	await chmod(tmp, 0o600);
 	await rename(tmp, path);

@@ -53,9 +53,9 @@ const START_BODY = {
 	interval: 0.001,
 };
 
-function accessTokenJws(email: string): string {
+function accessTokenJws(claims: Record<string, unknown>): string {
 	const header = Buffer.from(JSON.stringify({ alg: "none", typ: "JWT" })).toString("base64url");
-	const payload = Buffer.from(JSON.stringify({ email, sub: `user_${email.split("@")[0]}` })).toString("base64url");
+	const payload = Buffer.from(JSON.stringify(claims)).toString("base64url");
 	return `${header}.${payload}.fake-signature`;
 }
 
@@ -93,7 +93,7 @@ describe("pollDeviceSession", () => {
 		responses.push({
 			status: 200,
 			body: {
-				access_token: accessTokenJws("alice@example.com"),
+				access_token: accessTokenJws({ email: "alice@example.com", sub: "user_alice" }),
 				refresh_token: "rotating",
 				expires_in: 3600,
 			},
@@ -131,6 +131,61 @@ describe("pollDeviceSession", () => {
 		expect(state.status).toBe("pending");
 		expect(state.pollIntervalSeconds).toBeGreaterThanOrEqual(5);
 	});
+
+	test("discarded session after disconnect does not save the credential", async () => {
+		responses.push({ status: 200, body: START_BODY });
+		await startDeviceSession(now);
+		responses.push({
+			status: 200,
+			body: {
+				access_token: accessTokenJws({ email: "ghost@example.com", sub: "user_ghost" }),
+				refresh_token: "should-not-stick",
+				expires_in: 3600,
+			},
+		});
+		await disconnect();
+		const state = await pollDeviceSession(now + 5_000);
+		expect(state.status).toBe("idle");
+		expect(await loadCredential()).toBeNull();
+	});
+
+	test("falls back to account.email when the top-level claim is missing", async () => {
+		responses.push({ status: 200, body: START_BODY });
+		await startDeviceSession(now);
+		responses.push({
+			status: 200,
+			body: {
+				access_token: accessTokenJws({ account: { email: "nested@example.com" }, sub: "user_nested" }),
+				refresh_token: "r",
+				expires_in: 3600,
+			},
+		});
+		const state = await pollDeviceSession(now + 5_000);
+		expect(state.status).toBe("connected");
+		expect(state.identityEmail).toBe("nested@example.com");
+		const stored = await loadCredential();
+		expect(stored?.identity.email).toBe("nested@example.com");
+		expect(stored?.identity.sub).toBe("user_nested");
+	});
+
+	test("falls back to sub when no email claim is present", async () => {
+		responses.push({ status: 200, body: START_BODY });
+		await startDeviceSession(now);
+		responses.push({
+			status: 200,
+			body: {
+				access_token: accessTokenJws({ sub: "user_subonly" }),
+				refresh_token: "r",
+				expires_in: 3600,
+			},
+		});
+		const state = await pollDeviceSession(now + 5_000);
+		expect(state.status).toBe("connected");
+		expect(state.identityEmail).toBeNull();
+		const stored = await loadCredential();
+		expect(stored?.identity.email).toBeNull();
+		expect(stored?.identity.sub).toBe("user_subonly");
+	});
 });
 
 describe("disconnect", () => {
@@ -139,7 +194,7 @@ describe("disconnect", () => {
 		await startDeviceSession(now);
 		responses.push({
 			status: 200,
-			body: { access_token: accessTokenJws("bob@example.com"), refresh_token: "r", expires_in: 3600 },
+			body: { access_token: accessTokenJws({ email: "bob@example.com", sub: "user_bob" }), refresh_token: "r", expires_in: 3600 },
 		});
 		await pollDeviceSession(now + 1_000);
 		expect(await loadCredential()).not.toBeNull();
@@ -152,7 +207,7 @@ test("preserves any selection.json across disconnect", async () => {
 		await startDeviceSession(now);
 		responses.push({
 			status: 200,
-			body: { access_token: accessTokenJws("carol@example.com"), refresh_token: "r", expires_in: 3600 },
+			body: { access_token: accessTokenJws({ email: "carol@example.com", sub: "user_carol" }), refresh_token: "r", expires_in: 3600 },
 		});
 		await pollDeviceSession(now + 1_000);
 		await saveSelection(["wrk_a", "wrk_b"]);

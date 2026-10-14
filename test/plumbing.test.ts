@@ -187,10 +187,19 @@ describe("ensureFreshCredential", () => {
 			body: { access_token: "rotated-acc", refresh_token: "rotated-ref", expires_in: 3600 },
 		});
 		const fresh = await ensureFreshCredential(c);
-		expect(fresh.access).toBe("rotated-acc");
-		expect(fresh.refresh).toBe("rotated-ref");
-		expect(fresh.expires).toBeGreaterThan(Date.now() + 3_500_000);
+		expect(fresh?.access).toBe("rotated-acc");
+		expect(fresh?.refresh).toBe("rotated-ref");
+		expect(fresh?.expires).toBeGreaterThan(Date.now() + 3_500_000);
 		const stored = await loadCredential();
 		expect(stored?.access).toBe("rotated-acc");
+	});
+
+	test("clears the credential and returns null when the refresh fails", async () => {
+		const c = credential({ expires: Date.now() + 30_000, refresh: "rotating" });
+		await saveCredential(c);
+		responses.push({ status: 400, body: { error: "invalid_grant" } });
+		const fresh = await ensureFreshCredential(c);
+		expect(fresh).toBeNull();
+		expect(await loadCredential()).toBeNull();
 	});
 });
