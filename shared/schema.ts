@@ -10,7 +10,6 @@ export type UsageAccountInput = z.infer<typeof usageAccountInputSchema>;
 export const connectStatusSchema = z.enum([
 	"idle",
 	"pending",
-	"approved",
 	"denied",
 	"expired",
 	"connected",

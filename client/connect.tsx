@@ -13,7 +13,7 @@ import {
 } from "../shared/connect.ts";
 import type { ConnectState } from "../shared/schema.ts";
 import { themedStyles, button, type StyleSheet } from "./styles.ts";
-import { messageOf } from "./format.ts";
+import { messageOf } from "../shared/format.ts";
 import { WorkspacesPicker } from "./workspaces.tsx";
 
 const IDLE_STATE: ConnectState = { status: "idle" };

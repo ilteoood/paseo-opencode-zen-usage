@@ -4,7 +4,7 @@ import { useRpc } from "@getpaseo/plugin/client";
 import { listWorkspacesRpc, saveSelectionRpc } from "../shared/connect.ts";
 import type { WorkspaceEntry } from "../shared/schema.ts";
 import { button, type StyleSheet } from "./styles.ts";
-import { messageOf } from "./format.ts";
+import { messageOf } from "../shared/format.ts";
 
 interface WorkspacesPickerProps {
 	styles: StyleSheet;

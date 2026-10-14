@@ -1,4 +1,4 @@
-import { loadCredential, saveCredential } from "./cred.ts";
+import { clearCredential, loadCredential, saveCredential } from "./cred.ts";
 import type { Credential, DeviceStart, DeviceResponse, DeviceToken, DeviceError } from "./types.ts";
 
 export const CONSOLE = "https://opencode.ai/console";
@@ -135,18 +135,23 @@ export async function fetchWithWorkspace<T>(
 	return fetchJson<T>(url, token, { "x-org-id": workspaceId });
 }
 
-export async function ensureFreshCredential(current: Credential): Promise<Credential> {
+export async function ensureFreshCredential(current: Credential): Promise<Credential | null> {
 	if (Date.now() < current.expires - 60_000) return current;
-	const fresh = await refreshAccessToken(current.refresh);
-	const next: Credential = {
-		access: fresh.access_token,
-		refresh: fresh.refresh_token,
-		expires: Date.now() + fresh.expires_in * 1000,
-		identity: current.identity,
-		storedAt: Date.now(),
-	};
-	await saveCredential(next);
-	return next;
+	try {
+		const fresh = await refreshAccessToken(current.refresh);
+		const next: Credential = {
+			access: fresh.access_token,
+			refresh: fresh.refresh_token,
+			expires: Date.now() + fresh.expires_in * 1000,
+			identity: current.identity,
+			storedAt: Date.now(),
+		};
+		await saveCredential(next);
+		return next;
+	} catch {
+		await clearCredential();
+		return null;
+	}
 }
 
 export async function readFreshCredential(): Promise<Credential | null> {

@@ -8,6 +8,7 @@ import { readFreshCredential } from "./server/plumbing.ts";
 import { listOrgs } from "./server/orgs.ts";
 import type { Credential } from "./server/types.ts";
 import { saveSelection } from "./server/selection.ts";
+import { messageOf } from "./shared/format.ts";
 import { listWorkspacesForUsage, opencodeZenUsageSource } from "./server/usage.ts";
 import {
 	disconnectConnectRpc,
@@ -17,10 +18,6 @@ import {
 	startConnectRpc,
 	statusConnectRpc,
 } from "./shared/connect.ts";
-
-function messageOf(cause: unknown): string {
-	return cause instanceof Error ? cause.message : String(cause);
-}
 
 async function hydrateWorkspaceCount(credential: Credential): Promise<number | undefined> {
 	try {

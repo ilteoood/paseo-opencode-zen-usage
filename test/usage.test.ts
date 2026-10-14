@@ -120,6 +120,7 @@ describe("listAccounts", () => {
 describe("fetchReport", () => {
 	test("returns a window + balance per policy when the response is non-empty", async () => {
 		await saveOnly();
+		await saveSelection(["wrk_1"]);
 		responses.push({
 			status: 200,
 			body: [
@@ -168,6 +169,7 @@ describe("fetchReport", () => {
 
 	test("returns unavailable{no_quota} when the response is empty", async () => {
 		await saveOnly();
+		await saveSelection(["wrk_1"]);
 		responses.push({ status: 200, body: [] });
 		const report = await fetchReport({ workspaceId: "wrk_1" });
 		expect(report.status).toBe("unavailable");
@@ -180,6 +182,7 @@ describe("fetchReport", () => {
 
 	test("returns unavailable{expired} on 401", async () => {
 		await saveCredential(credential({ expires: Date.now() + 10 * 60_000 }));
+		await saveSelection(["wrk_1"]);
 		responses.push({ status: 401, body: { _tag: "Unauthorized" } });
 		const report = await fetchReport({ workspaceId: "wrk_1" });
 		expect(report.status).toBe("unavailable");
@@ -192,6 +195,7 @@ describe("fetchReport", () => {
 
 	test("returns no_quota on 403", async () => {
 		await saveCredential(credential({ expires: Date.now() + 10 * 60_000 }));
+		await saveSelection(["wrk_1"]);
 		responses.push({ status: 403, body: { _tag: "Forbidden" } });
 		const report = await fetchReport({ workspaceId: "wrk_1" });
 		expect(report.status).toBe("unavailable");
@@ -209,9 +213,23 @@ describe("fetchReport", () => {
 
 	test("returns error when response shape is unexpected", async () => {
 		await saveOnly();
+		await saveSelection(["wrk_1"]);
 		responses.push({ status: 200, body: { _: "not an array" } });
 		const report = await fetchReport({ workspaceId: "wrk_1" });
 		expect(report.status).toBe("error");
+	});
+
+	test("returns unavailable{no_quota} when the workspace is not on the watchlist", async () => {
+		await saveOnly();
+		await saveSelection(["wrk_other"]);
+		const report = await fetchReport({ workspaceId: "wrk_1" });
+		expect(report.status).toBe("unavailable");
+		if (report.status === "unavailable" && report.problem.kind === "no_quota") {
+			expect(report.problem.detail).toMatch(/watchlist/);
+		} else {
+			throw new Error("expected unavailable {no_quota}");
+		}
+		expect(calls).toHaveLength(0);
 	});
 });
 
