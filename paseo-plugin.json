@@ -1,0 +1,6 @@
+{
+  "id": "paseo-opencode-zen-usage",
+  "name": "OpenCode Zen Usage",
+  "description": "OpenCode Zen console quota in Paseo — your monthly budget across every workspace you belong to.",
+  "requirements": { "paseo": ">=0.11.0" }
+}

@@ -1,0 +1,19 @@
+{
+  "name": "paseo-opencode-zen-usage",
+  "version": "0.1.0",
+  "description": "Paseo plugin: OpenCode Zen monthly budget across your workspaces.",
+  "type": "module",
+  "license": "MIT",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "bun test"
+  },
+  "devDependencies": {
+    "@getpaseo/plugin": "^0.11.2",
+    "@types/react": "~19.2.0",
+    "@types/bun": "latest",
+    "react": "19.1.0",
+    "react-native": "0.81.5",
+    "typescript": "^5.6.0"
+  }
+}
