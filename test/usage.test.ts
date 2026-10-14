@@ -202,15 +202,15 @@ describe("fetchReport", () => {
 		}
 	});
 
-	test("returns unavailable{rejected} on 403", async () => {
+test("returns no_quota with admin hint on 403", async () => {
 		await saveCredential(credential({ expires: Date.now() + 10 * 60_000 }));
 		responses.push({ status: 403, body: { _tag: "Forbidden" } });
 		const report = await fetchReport({ workspaceId: "wrk_1" });
 		expect(report.status).toBe("unavailable");
-		if (report.status === "unavailable" && report.problem.kind === "rejected") {
-			expect(report.problem.status).toBe(403);
+		if (report.status === "unavailable" && report.problem.kind === "no_quota") {
+			expect(report.problem.detail).toMatch(/admin|budget/i);
 		} else {
-			throw new Error("expected unavailable {rejected}");
+			throw new Error("expected unavailable {no_quota}");
 		}
 	});
 

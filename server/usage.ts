@@ -183,9 +183,9 @@ function diagnoseError(error: unknown): UsageReport {
 		}
 		if (error.status === 403) {
 			return unavailable({
-				kind: "rejected",
-				status: 403,
-				refreshedBy: HARNESS,
+				kind: "no_quota",
+				detail:
+					"OpenCode rejected this login (HTTP 403). The console budgets endpoint requires an admin or service-account key; reconnect from Command Center or paste an admin API key into plugin settings.",
 			});
 		}
 	}
@@ -198,12 +198,11 @@ export async function fetchReport(input: unknown): Promise<UsageReport> {
 		return { status: "error", error: parsed.error.message };
 	}
 	const { workspaceId } = parsed.data;
-	const credential = await loadCredential();
+const credential = await loadCredential();
 	if (!credential) {
 		return unavailable({
-			kind: "rejected",
-			status: 401,
-			refreshedBy: HARNESS,
+			kind: "expired",
+			expiresAt: new Date().toISOString(),
 		});
 	}
 	let members: BudgetMember[];
