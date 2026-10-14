@@ -30,3 +30,31 @@ export const connectStateSchema = z
 	})
 	.strict();
 export type ConnectState = z.infer<typeof connectStateSchema>;
+
+export const workspaceEntrySchema = z
+	.object({
+		id: z.string().min(1),
+		name: z.string().min(1),
+		selected: z.boolean(),
+	})
+	.strict();
+export type WorkspaceEntry = z.infer<typeof workspaceEntrySchema>;
+
+export const listWorkspacesOutputSchema = z
+	.object({
+		entries: z.array(workspaceEntrySchema),
+	})
+	.strict();
+export type ListWorkspacesOutput = z.infer<typeof listWorkspacesOutputSchema>;
+
+export const saveSelectionInputSchema = z
+	.object({
+		workspaceIds: z.array(z.string().min(1)),
+	})
+	.strict();
+export type SaveSelectionInput = z.infer<typeof saveSelectionInputSchema>;
+
+export const saveSelectionOutputSchema = z
+	.object({ ok: z.boolean() })
+	.strict();
+export type SaveSelectionOutput = z.infer<typeof saveSelectionOutputSchema>;

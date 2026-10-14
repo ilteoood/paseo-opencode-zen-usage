@@ -3,7 +3,8 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { saveCredential } from "../server/cred.ts";
-import { fetchReport, listAccounts } from "../server/usage.ts";
+import { loadSelection, saveSelection } from "../server/selection.ts";
+import { fetchReport, listAccounts, listWorkspacesForUsage } from "../server/usage.ts";
 import type { Credential } from "../server/types.ts";
 import { usageAccountInputSchema } from "../shared/schema.ts";
 
@@ -211,5 +212,58 @@ describe("fetchReport", () => {
 		responses.push({ status: 200, body: { _: "not an array" } });
 		const report = await fetchReport({ workspaceId: "wrk_1" });
 		expect(report.status).toBe("error");
+	});
+});
+
+describe("workspace watchlist", () => {
+	test("listAccounts seeds selection.json with every org on first run", async () => {
+		await respondOrgs([
+			{ id: "wrk_alpha", name: "Alpha" },
+			{ id: "wrk_beta", name: "Beta" },
+		]);
+		const accounts = await listAccounts({ kind: "global" });
+		expect(accounts).toHaveLength(2);
+		const selection = await loadSelection();
+		expect(selection?.workspaceIds).toEqual(["wrk_alpha", "wrk_beta"]);
+	});
+
+	test("listAccounts filters to the intersection of selection and /api/orgs", async () => {
+		await respondOrgs([
+			{ id: "wrk_alpha", name: "Alpha" },
+			{ id: "wrk_beta", name: "Beta" },
+		]);
+		await saveSelection(["wrk_alpha", "wrk_ghost"]);
+		const accounts = await listAccounts({ kind: "global" });
+		expect(accounts).toHaveLength(1);
+		expect(accounts[0]?.input).toEqual({ workspaceId: "wrk_alpha" });
+	});
+
+	test("listAccounts returns [] when selection has no overlap with /api/orgs", async () => {
+		await respondOrgs([{ id: "wrk_alpha", name: "Alpha" }]);
+		await saveSelection(["wrk_other"]);
+		const accounts = await listAccounts({ kind: "global" });
+		expect(accounts).toEqual([]);
+	});
+
+	test("listAccounts returns [] without seeding when /api/orgs is empty", async () => {
+		await saveCredential(credential());
+		responses.push({ status: 200, body: [] });
+		const accounts = await listAccounts({ kind: "global" });
+		expect(accounts).toEqual([]);
+		expect(await loadSelection()).toBeNull();
+	});
+
+	test("listWorkspacesForUsage tags each entry with its selected state", async () => {
+		await respondOrgs([
+			{ id: "wrk_alpha", name: "Alpha" },
+			{ id: "wrk_beta", name: "Beta" },
+		]);
+		await saveSelection(["wrk_alpha"]);
+		const credentialSnap = credential();
+		const entries = await listWorkspacesForUsage(credentialSnap.access);
+		expect(entries).toEqual([
+			{ id: "wrk_alpha", name: "Alpha", selected: true },
+			{ id: "wrk_beta", name: "Beta", selected: false },
+		]);
 	});
 });

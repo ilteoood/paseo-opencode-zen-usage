@@ -5,22 +5,24 @@ import {
 	startDeviceSession,
 } from "./server/auth.ts";
 import { loadCredential } from "./server/cred.ts";
-import { fetchJson } from "./server/plumbing.ts";
-import { opencodeZenUsageSource } from "./server/usage.ts";
+import { listOrgs } from "./server/orgs.ts";
+import { saveSelection } from "./server/selection.ts";
+import { listWorkspacesForUsage, opencodeZenUsageSource } from "./server/usage.ts";
 import {
 	disconnectConnectRpc,
+	listWorkspacesRpc,
 	pollConnectRpc,
+	saveSelectionRpc,
 	startConnectRpc,
 	statusConnectRpc,
 } from "./shared/connect.ts";
 
-async function hydrateWorkspaceCount(wantsCount: boolean): Promise<number | undefined> {
-	if (!wantsCount) return undefined;
+async function hydrateWorkspaceCount(): Promise<number | undefined> {
 	const credential = await loadCredential();
 	if (!credential) return undefined;
 	try {
-		const orgs = await fetchJson<unknown[]>(`https://opencode.ai/console/api/orgs`, credential.access);
-		return Array.isArray(orgs) ? orgs.length : undefined;
+		const orgs = await listOrgs(credential.access);
+		return orgs.length;
 	} catch {
 		return undefined;
 	}
@@ -37,7 +39,7 @@ export default function contribute(server: PluginServerContext): () => void {
 	server.handle(pollConnectRpc, async () => {
 		const state = await pollDeviceSession();
 		if (state.status === "connected") {
-			state.workspaceCount = await hydrateWorkspaceCount(true);
+			state.workspaceCount = await hydrateWorkspaceCount();
 		}
 		return state;
 	});
@@ -47,7 +49,7 @@ export default function contribute(server: PluginServerContext): () => void {
 		if (!credential) {
 			return { status: "idle" as const };
 		}
-		const workspaceCount = await hydrateWorkspaceCount(true);
+		const workspaceCount = await hydrateWorkspaceCount();
 		return {
 			status: "connected" as const,
 			identityEmail: credential.identity.email,
@@ -57,6 +59,21 @@ export default function contribute(server: PluginServerContext): () => void {
 
 	server.handle(disconnectConnectRpc, async () => {
 		return disconnect();
+	});
+
+	server.handle(listWorkspacesRpc, async () => {
+		const credential = await loadCredential();
+		if (!credential) return { entries: [] };
+		try {
+			return { entries: await listWorkspacesForUsage(credential.access) };
+		} catch {
+			return { entries: [] };
+		}
+	});
+
+	server.handle(saveSelectionRpc, async ({ workspaceIds }) => {
+		await saveSelection(workspaceIds);
+		return { ok: true };
 	});
 
 	return () => {};

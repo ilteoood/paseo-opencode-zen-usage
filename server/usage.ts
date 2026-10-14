@@ -15,8 +15,10 @@ import type {
 	UsageWindow,
 } from "@getpaseo/plugin/server/usage";
 
-import { CONSOLE, HttpError, fetchJson, fetchWithWorkspace, readFreshCredential } from "./plumbing.ts";
-import type { CurrentBudget, Org } from "./types.ts";
+import { CONSOLE, HttpError, fetchWithWorkspace, readFreshCredential } from "./plumbing.ts";
+import { listOrgs } from "./orgs.ts";
+import { ensureSeeded } from "./selection.ts";
+import type { Org, CurrentBudget } from "./types.ts";
 import { usageAccountInputSchema } from "../shared/schema.ts";
 
 const USAGE_INPUT = usageAccountInputSchema;
@@ -37,35 +39,35 @@ function accountKeyFor(workspaceId: string, identitySubject: string | null): str
 	return hashAccountKey(`${workspaceId}:${HARNESS}:${subject}`);
 }
 
-async function fetchOrganizations(token: string): Promise<Org[]> {
-	const list = await fetchJson<Org[] | { orgs?: Org[] }>(`${CONSOLE}/api/orgs`, token);
-	const records = Array.isArray(list) ? list : (list.orgs ?? []);
-	return records
-		.filter((org): org is Org => Boolean(org) && typeof org === "object")
-		.map((org) => ({
-			id: typeof org.id === "string" ? org.id : "",
-			name: typeof org.name === "string" && org.name.length > 0 ? org.name : (typeof org.id === "string" ? org.id : "Workspace"),
-		}))
-		.filter((org) => org.id.length > 0);
+async function watchedOrgs(token: string): Promise<{ orgs: Org[]; selectedIds: Set<string> }> {
+	const orgs = await listOrgs(token);
+	if (orgs.length === 0) return { orgs: [], selectedIds: new Set() };
+	const selection = await ensureSeeded(orgs.map((org) => org.id));
+	return { orgs, selectedIds: new Set(selection.workspaceIds) };
+}
+
+export async function listWorkspacesForUsage(
+	token: string,
+): Promise<Array<{ id: string; name: string; selected: boolean }>> {
+	const { orgs, selectedIds } = await watchedOrgs(token);
+	return orgs.map((org) => ({ id: org.id, name: org.name, selected: selectedIds.has(org.id) }));
 }
 
 export async function listAccounts(scope: UsageScope): Promise<UsageAccount[]> {
 	if (!sessionMatches(scope)) return [];
 	const credential = await loadCredential();
 	if (!credential) return [];
-	const orgs = await fetchOrganizations(credential.access);
+	const { orgs, selectedIds } = await watchedOrgs(credential.access);
 	const subject = credential.identity.email ?? credential.identity.sub;
-	return orgs.map((org) => {
-		const key = accountKeyFor(org.id, subject);
-		const email = credential.identity.email;
-		const label = email ? `${org.name} — ${email}` : org.name;
-		return {
-			key,
-			label,
+	const email = credential.identity.email;
+	return orgs
+		.filter((org) => selectedIds.has(org.id))
+		.map((org) => ({
+			key: accountKeyFor(org.id, subject),
+			label: email ? `${org.name} — ${email}` : org.name,
 			harness: HARNESS,
 			input: { workspaceId: org.id },
-		};
-	});
+		}));
 }
 
 function windowAndBalanceForBudget(index: number, budget: CurrentBudget): { window: UsageWindow; balance: UsageBalance } {
