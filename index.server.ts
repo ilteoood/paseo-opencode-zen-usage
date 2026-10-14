@@ -54,25 +54,22 @@ export default function contribute(server: PluginServerContext): () => void {
 		if (!credential) {
 			return { status: "idle" as const };
 		}
-		const workspaceCount = await hydrateWorkspaceCount(credential);
 		return {
 			status: "connected" as const,
 			identityEmail: credential.identity.email,
-			workspaceCount,
 		};
 	});
-
 	server.handle(disconnectConnectRpc, async () => {
 		return disconnect();
 	});
 
 	server.handle(listWorkspacesRpc, async () => {
 		const credential = await readFreshCredential();
-		if (!credential) return { entries: [], error: "not connected" };
+		if (!credential) return { entries: [], totalCount: null, error: "not connected" };
 		try {
-			return { entries: await listWorkspacesForUsage(credential.access) };
+			return await listWorkspacesForUsage(credential.access);
 		} catch (cause) {
-			return { entries: [], error: messageOf(cause) };
+			return { entries: [], totalCount: null, error: messageOf(cause) };
 		}
 	});
 

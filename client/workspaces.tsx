@@ -9,9 +9,10 @@ import { messageOf } from "./format.ts";
 interface WorkspacesPickerProps {
 	styles: StyleSheet;
 	compact: boolean;
+	onLoaded?: (totalCount: number | null) => void;
 }
 
-export function WorkspacesPicker({ styles, compact }: WorkspacesPickerProps) {
+export function WorkspacesPicker({ styles, compact, onLoaded }: WorkspacesPickerProps) {
 	const list = useRpc(listWorkspacesRpc);
 	const save = useRpc(saveSelectionRpc);
 	const [entries, setEntries] = useState<WorkspaceEntry[] | null>(null);
@@ -30,6 +31,7 @@ export function WorkspacesPicker({ styles, compact }: WorkspacesPickerProps) {
 				if (!cancelled) {
 					setEntries(next);
 					if (result?.error) setError(result.error);
+					onLoaded?.(result.totalCount ?? null);
 					const selected = new Set(next.filter((entry) => entry.selected).map((entry) => entry.id));
 					setInitial(selected);
 					setStaged(selected);

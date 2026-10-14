@@ -43,6 +43,7 @@ export type WorkspaceEntry = z.infer<typeof workspaceEntrySchema>;
 export const listWorkspacesOutputSchema = z
 	.object({
 		entries: z.array(workspaceEntrySchema),
+		totalCount: z.number().nullish(),
 		error: z.string().nullish(),
 	})
 	.strict();

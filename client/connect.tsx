@@ -27,6 +27,7 @@ export function ConnectScreen({ theme, layout }: PluginScreenProps) {
 	const [state, setState] = useState<ConnectState>(IDLE_STATE);
 	const [busy, setBusy] = useState(false);
 	const [error, setError] = useState<string | null>(null);
+	const [totalCount, setTotalCount] = useState<number | null>(null);
 
 	useEffect(() => {
 		let cancelled = false;
@@ -103,7 +104,7 @@ export function ConnectScreen({ theme, layout }: PluginScreenProps) {
 				{state.status === "connected" ? (
 					<Text style={{ color: styles.text, fontSize: 14 }}>
 						Connected{state.identityEmail ? ` as ${state.identityEmail}` : ""}
-						{state.workspaceCount ? ` — ${state.workspaceCount} workspace${state.workspaceCount === 1 ? "" : "s"}` : ""}
+						{totalCount ? ` — ${totalCount} workspace${totalCount === 1 ? "" : "s"}` : ""}
 					</Text>
 				) : state.status === "pending" ? (
 					<Pending state={state} styles={styles} layout={layout} />
@@ -115,7 +116,7 @@ export function ConnectScreen({ theme, layout }: PluginScreenProps) {
 
 			{state.status === "connected" ? (
 				<Section title="Workspaces" styles={styles}>
-					<WorkspacesPicker styles={styles} compact={layout.compact} />
+					<WorkspacesPicker styles={styles} compact={layout.compact} onLoaded={setTotalCount} />
 				</Section>
 			) : null}
 

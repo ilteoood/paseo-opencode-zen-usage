@@ -46,7 +46,7 @@ async function watchedOrgs(token: string): Promise<{ orgs: Org[]; selectedIds: S
 
 export async function listWorkspacesForUsage(
 	token: string,
-): Promise<Array<{ id: string; name: string; selected: boolean; present: boolean }>> {
+): Promise<{ entries: Array<{ id: string; name: string; selected: boolean; present: boolean }>; totalCount: number }> {
 	const { orgs, selectedIds } = await watchedOrgs(token);
 	const orgIds = new Set(orgs.map((org) => org.id));
 	const present = orgs.map((org) => ({
@@ -58,7 +58,7 @@ export async function listWorkspacesForUsage(
 	const ghosts = [...selectedIds]
 		.filter((id) => !orgIds.has(id))
 		.map((id) => ({ id, name: id, selected: true, present: false }));
-	return [...present, ...ghosts];
+	return { entries: [...present, ...ghosts], totalCount: present.length };
 }
 
 export async function listAccounts(scope: UsageScope): Promise<UsageAccount[]> {

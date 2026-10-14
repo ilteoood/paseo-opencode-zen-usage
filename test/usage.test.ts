@@ -260,8 +260,9 @@ describe("workspace watchlist", () => {
 		]);
 		await saveSelection(["wrk_alpha"]);
 		const credentialSnap = credential();
-		const entries = await listWorkspacesForUsage(credentialSnap.access);
-		expect(entries).toEqual([
+		const result = await listWorkspacesForUsage(credentialSnap.access);
+		expect(result.totalCount).toBe(2);
+		expect(result.entries).toEqual([
 			{ id: "wrk_alpha", name: "Alpha", selected: true, present: true },
 			{ id: "wrk_beta", name: "Beta", selected: false, present: true },
 		]);
@@ -271,8 +272,9 @@ describe("workspace watchlist", () => {
 		await respondOrgs([{ id: "wrk_alpha", name: "Alpha" }]);
 		await saveSelection(["wrk_alpha", "wrk_ghost"]);
 		const credentialSnap = credential();
-		const entries = await listWorkspacesForUsage(credentialSnap.access);
-		expect(entries).toEqual([
+		const result = await listWorkspacesForUsage(credentialSnap.access);
+		expect(result.totalCount).toBe(1);
+		expect(result.entries).toEqual([
 			{ id: "wrk_alpha", name: "Alpha", selected: true, present: true },
 			{ id: "wrk_ghost", name: "wrk_ghost", selected: true, present: false },
 		]);
@@ -293,8 +295,9 @@ describe("workspace watchlist", () => {
 		});
 		const fresh = await readFreshCredential();
 		expect(fresh).not.toBeNull();
-		const entries = await listWorkspacesForUsage(fresh!.access);
-		expect(entries.map((entry) => entry.id)).toEqual(["wrk_alpha", "wrk_beta"]);
+		const result = await listWorkspacesForUsage(fresh!.access);
+		expect(result.totalCount).toBe(2);
+		expect(result.entries.map((entry) => entry.id)).toEqual(["wrk_alpha", "wrk_beta"]);
 		const orgsCall = calls.find((call) => call.url.includes("/api/orgs"));
 		expect((orgsCall?.headers as Record<string, string> | undefined)?.Authorization).toBe(
 			"Bearer rotated-acc",
