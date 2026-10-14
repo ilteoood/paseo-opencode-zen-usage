@@ -13,6 +13,7 @@ import {
 } from "../shared/connect.ts";
 import type { ConnectState } from "../shared/schema.ts";
 import { themedStyles, type StyleSheet } from "./styles.ts";
+import { WorkspacesPicker } from "./workspaces.tsx";
 
 const IDLE_STATE: ConnectState = { status: "idle" };
 
@@ -93,7 +94,8 @@ export function ConnectScreen({ theme, layout }: PluginScreenProps) {
 				OpenCode Zen Usage
 			</Text>
 			<Text style={{ color: styles.textMuted, fontSize: 13 }}>
-				Connect a personal OpenCode Zen account to monitor your monthly budget in the Paseo Usage modal.
+				Connect a personal OpenCode Zen account to monitor your monthly budget in the Paseo Usage
+				modal.
 			</Text>
 
 			<Section title="Status" styles={styles}>
@@ -109,6 +111,12 @@ export function ConnectScreen({ theme, layout }: PluginScreenProps) {
 				)}
 				{error ? <Text style={{ color: styles.danger, fontSize: 13 }}>{error}</Text> : null}
 			</Section>
+
+			{state.status === "connected" ? (
+				<Section title="Workspaces" styles={styles}>
+					<WorkspacesPicker styles={styles} compact={layout.compact} />
+				</Section>
+			) : null}
 
 			<Section title="Action" styles={styles}>
 				{state.status === "connected" ? (
@@ -132,7 +140,9 @@ export function ConnectScreen({ theme, layout }: PluginScreenProps) {
 						{busy ? (
 							<ActivityIndicator color={styles.text} />
 						) : (
-							<Text style={{ color: styles.accentForeground, fontWeight: "600" }}>Connect OpenCode Zen</Text>
+							<Text style={{ color: styles.accentForeground, fontWeight: "600" }}>
+								Connect OpenCode Zen
+							</Text>
 						)}
 					</Pressable>
 				) : (
@@ -202,7 +212,6 @@ function Pending({ state, styles, layout }: PendingProps) {
 	);
 }
 
-
 function buttonStyle(styles: StyleSheet, pressed: boolean, busy: boolean, variant: "primary" | "danger") {
 	const color = variant === "danger" ? styles.danger : styles.accent;
 	return {
@@ -215,7 +224,6 @@ function buttonStyle(styles: StyleSheet, pressed: boolean, busy: boolean, varian
 		opacity: pressed || busy ? 0.6 : 1,
 	};
 }
-
 
 function expiresInLabel(expiresAt: number): string {
 	const remaining = Math.max(0, Math.floor((expiresAt - Date.now()) / 1000));
