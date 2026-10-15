@@ -15,6 +15,11 @@ paseo plugin add git:https://github.com/ilteoood/paseo-opencode-zen-usage
 
 Requires Paseo 0.11+ on the daemon.
 
+### Configuration
+
+Open and configure it from the command center
+![Command center with paseo-opencode-zen-usage installed](./assets/command_center.png)
+
 ## How it works
 
 1. **Connect** — open the `Connect OpenCode Zen` Command Center item. The
