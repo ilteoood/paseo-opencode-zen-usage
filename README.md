@@ -133,4 +133,4 @@ that disconnect preserves `selection.json`.
 
 ## License
 
-MIT — Copyright (c) 2025 Matteo Pietro Dazzi.
+MIT — Copyright (c) 2026 Matteo Pietro Dazzi.
