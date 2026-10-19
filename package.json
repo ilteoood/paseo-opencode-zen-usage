@@ -9,7 +9,7 @@
     "test": "bun test"
   },
   "devDependencies": {
-    "@getpaseo/plugin": "^0.11.2",
+    "@getpaseo/plugin": "^0.11.4",
     "@types/bun": "latest",
     "@types/react": "~19.3.0",
     "react": "19.3.1",
