@@ -5,7 +5,7 @@
     "": {
       "name": "paseo-opencode-zen-usage",
       "devDependencies": {
-        "@getpaseo/plugin": "^0.11.4",
+        "@getpaseo/plugin": "^0.12.0",
         "@types/bun": "latest",
         "@types/react": "~19.3.0",
         "react": "19.3.1",
@@ -53,7 +53,7 @@
 
     "@getpaseo/client": ["@getpaseo/client@0.11.2", "", { "dependencies": { "@getpaseo/protocol": "0.11.2", "@getpaseo/relay": "0.11.2", "zod": "^4.4.3" } }, "sha512-F5483GAkhbitCoJi3Xy+RbIS9ja6Hy+NToOl8J3b5bIFhrttO4sofETCW2Q2LVFDTyQq0v24z8ZQpvwuyV/IUg=="],
 
-    "@getpaseo/plugin": ["@getpaseo/plugin@0.11.4", "", { "dependencies": { "@agentclientprotocol/sdk": "^1.4.0", "use-sync-external-store": "^1.6.0" }, "peerDependencies": { "@getpaseo/client": "0.11.4", "@getpaseo/protocol": "0.11.4", "react": "~19.1.0", "react-native": ">=0.81.5", "zod": "^4.4.3" }, "optionalPeers": ["react-native"] }, "sha512-V3cs31ACgCTelZt3UHlLAFKdEDSv7yF3PyVpd7mbQ+zNx77ioWHC5qwWFqPVfJ4fsGlfApBozezjmoTvl3EPxA=="],
+    "@getpaseo/plugin": ["@getpaseo/plugin@0.12.0", "", { "dependencies": { "@agentclientprotocol/sdk": "^1.4.0", "use-sync-external-store": "^1.6.0" }, "peerDependencies": { "@getpaseo/client": "0.12.0", "@getpaseo/protocol": "0.12.0", "react": "~19.1.0", "react-native": ">=0.81.5", "zod": "^4.4.3" }, "optionalPeers": ["react-native"] }, "sha512-LSwpGU3o6/SRAfzIIq9BA6aqEO6LRmbJTyyCRl+jWCsguL++klMpf6HBbAZJtQOlv5YuF21gjKZvLcSkngpxFg=="],
 
     "@getpaseo/protocol": ["@getpaseo/protocol@0.11.2", "", { "dependencies": { "semver": "^7.8.5", "zod": "^4.4.3" } }, "sha512-C+YZ5aZs+X3ygKJnpL1IZ9MvMcmGz7waPV0UYusaTFg+bPSl2jW2HOEYlxUALucwTnDYwsFgi+rAzKAihHWkXQ=="],
 
