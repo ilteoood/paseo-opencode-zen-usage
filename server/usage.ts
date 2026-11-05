@@ -182,6 +182,7 @@ export async function fetchReport(input: unknown): Promise<UsageReport> {
 export const opencodeZenUsageSource: UsageSourceRegistration = {
 	id: "opencode-zen-usage",
 	label: "OpenCode Zen",
+	icon: "icon.svg",
 	input: usageAccountInputSchema,
 	discover: listAccounts,
 	fetch: fetchReport,

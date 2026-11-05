@@ -104,6 +104,7 @@ budget policy that applies to the signed-in user (USD, with `used`,
 
 ```
 paseo-plugin.json          id, requirement >=0.11.0
+icon.svg                  usage-source icon (OpenCode mark)
 index.server.ts            registers usage source + connect/workspaces RPCs
 index.client.tsx           registers screen + Command Center item
 client/connect.tsx         device-flow UI
