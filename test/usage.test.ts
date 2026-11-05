@@ -1,10 +1,15 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { mkdtempSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { saveCredential } from "../server/cred.ts";
 import { loadSelection, saveSelection } from "../server/selection.ts";
-import { fetchReport, listAccounts, listWorkspacesForUsage } from "../server/usage.ts";
+import {
+	fetchReport,
+	listAccounts,
+	listWorkspacesForUsage,
+	opencodeZenUsageSource,
+} from "../server/usage.ts";
 import { readFreshCredential } from "../server/plumbing.ts";
 import type { Credential } from "../server/types.ts";
 import { usageAccountInputSchema } from "../shared/schema.ts";
@@ -320,5 +325,12 @@ describe("workspace watchlist", () => {
 		expect((orgsCall?.headers as Record<string, string> | undefined)?.Authorization).toBe(
 			"Bearer rotated-acc",
 		);
+	});
+});
+
+describe("opencodeZenUsageSource", () => {
+	test("points at an icon file that ships with the plugin", () => {
+		expect(opencodeZenUsageSource.icon).toBe("icon.svg");
+		expect(existsSync(join(import.meta.dir, "..", "icon.svg"))).toBe(true);
 	});
 });
